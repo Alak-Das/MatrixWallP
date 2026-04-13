@@ -1,11 +1,11 @@
-# 🕉️ Sanskrit Matrix – Dynamic Desktop Wallpaper v2.1
+# 🕉️ Sanskrit Matrix – Dynamic Desktop Wallpaper v1.0
 
 A Matrix-style falling-glyph live wallpaper using the **full Unicode Devanagari / Sanskrit** character set.  
 Built with pure **HTML5 Canvas** — no frameworks, no dependencies — for minimal CPU/GPU usage.
 
 ---
 
-## 📋 Character Sets (v2.0 — Full Unicode Coverage)
+## 📋 Character Sets (Full Unicode Coverage)
 
 | Set | Unicode Range | Description |
 |-----|--------------|-------------|
@@ -22,7 +22,7 @@ All enabled sets are drawn in **random order** — every glyph is picked uniform
 
 ---
 
-## ✨ What's New in v2.0
+## ✨ Key Features
 
 | # | Feature |
 |---|---------|
@@ -36,12 +36,12 @@ All enabled sets are drawn in **random order** — every glyph is picked uniform
 | 8 | **Export / Import config** — copy/paste JSON to share or backup settings |
 | 9 | **Pause / Play** — floating ⏸ button + `Space` key shortcut |
 | 10 | **Google Fonts fallback** — Noto Sans Devanagari loaded from CDN if not installed locally |
-| 11 | **`alpha: false` optimisation** — documented with rationale |
+| 11 | **`alpha: false` optimisation** — maximum FPS on lower hardware |
 | 12 | **High-DPI aware** — canvas scales by `devicePixelRatio` for crisp glyphs on Retina displays |
 | 13 | **Lively Wallpaper UI** — `LivelyProperties.json` exposes sliders/pickers in Lively's native panel |
 | 14 | **Wallpaper Engine** — `project.json` for easy WE import |
-| 15 | **Debounced resize** — 150 ms debounce prevents thrashing during window drag |
-| 16 | **Cached draw constants** — COLORS, rows, speed, fadeAlpha computed once on change, not per frame |
+| 15 | **Debounced resize** — prevent thrashing during window drag |
+| 16 | **Cached draw constants** — precomputes performance-heavy variables |
 | 17 | **HTC-Style Flip Clock** — Customizable 3D flip clock with adjustable size, opacity, and position |
 | 18 | **Animation Styles** — Choose between Falling (Matrix classic), Blinking (twinkling), or Mixed |
 | 19 | **Performance Batching** — Optimized draw loop with state-change batching and precomputed color strings |
@@ -59,7 +59,7 @@ All enabled sets are drawn in **random order** — every glyph is picked uniform
 3. Click **"+ Add Wallpaper"** → choose **"Browse"**.
 4. Select `index.html` from this folder.
 5. Set it as your active wallpaper.
-6. *(v2.0)* Lively reads `LivelyProperties.json` and shows the settings directly in its native sidebar.
+6. Lively reads `LivelyProperties.json` and shows the settings directly in its native sidebar.
 
 > Lively automatically pauses the animation when the desktop is hidden,  
 > saving CPU when you're using other apps.
@@ -126,7 +126,7 @@ All settings are saved automatically to `localStorage` and persist across restar
 ## 🔤 Font
 
 The wallpaper uses: `"Noto Sans Devanagari"`, `"Mangal"`, falling back to monospace.  
-**v2.0** also preloads **Noto Sans Devanagari** directly from Google Fonts as a CDN fallback.  
+Preloads **Noto Sans Devanagari** directly from Google Fonts as a CDN fallback.  
 Install locally for best results: https://fonts.google.com/noto/specimen/Noto+Sans+Devanagari
 
 ---
