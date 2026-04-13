@@ -125,4 +125,4 @@ Install locally for best results: https://fonts.google.com/noto/specimen/Noto+Sa
 
 ---
 
-*Made with ❤️ and ॐ*
+*Made with ❤️ and ॐ by Alak D*
