@@ -8,6 +8,30 @@
   "title": "Sanskrit Matrix",
   "type": "web",
   "version": 1,
+  "general": {
+    "properties": {
+      "fps": { "text": "FPS Cap", "type": "slider", "min": 6, "max": 60, "value": 24, "step": 3 },
+      "font_size": { "text": "Glyph Size", "type": "slider", "min": 10, "max": 40, "value": 18, "step": 1 },
+      "speed": { "text": "Speed", "type": "slider", "min": 1, "max": 30, "value": 6, "step": 1 },
+      "fade": { "text": "Trail Length", "type": "slider", "min": 1, "max": 20, "value": 10, "step": 1 },
+      "density": { "text": "Density %", "type": "slider", "min": 20, "max": 100, "value": 100, "step": 5 },
+      "anim_mode": { 
+        "text": "Animation Style", "type": "combo", "value": 0,
+        "options": [
+          { "label": "Falling Only", "value": 0 },
+          { "label": "Blinking Only", "value": 1 },
+          { "label": "Mixed Mode", "value": 2 }
+        ]
+      },
+      "head_color": { "text": "Head Color", "type": "color", "value": "0 1 0.53" },
+      "bg_color": { "text": "Background Color", "type": "color", "value": "0 0 0" },
+      "katakana": { "text": "Mix Katakana", "type": "bool", "value": false },
+      "rainbow_letters": { "text": "Rainbow Mode", "type": "bool", "value": false },
+      "show_clock": { "text": "Show Clock", "type": "bool", "value": true },
+      "clock_size": { "text": "Clock Size %", "type": "slider", "min": 40, "max": 180, "value": 150, "step": 10 },
+      "clock_opacity": { "text": "Clock Opacity %", "type": "slider", "min": 10, "max": 100, "value": 90, "step": 5 }
+    }
+  },
   "visibility": "private",
   "workshopid": ""
 }

@@ -891,11 +891,12 @@ function draw() {
 
   // ⑦ Randomized blinking stars (Mode 1: Blinking, 2: Mixed)
   if (CFG.animMode !== 0) {
-     const maxBlinks = Math.max(1, Math.floor((cols * cRows) * 0.002 * (CFG.density / 100) * cSpeed));
+     // Boosted blink density (0.002 -> 0.008) and lowered random skip for more "activity"
+     const maxBlinks = Math.max(2, Math.floor((cols * cRows) * 0.008 * (CFG.density / 100) * cSpeed));
      ctx.shadowBlur = 16;
      
      for (let i = 0; i < maxBlinks; i++) {
-        if (Math.random() > 0.6) continue;
+        if (Math.random() > 0.8) continue; // More likely to spawn
         const bc = Math.floor(Math.random() * cols);
         const br = Math.floor(Math.random() * cRows);
         const ch = randomChar();
@@ -996,14 +997,18 @@ if (typeof lively !== 'undefined') {
 }
 
 /** Global hook called by Lively Wallpaper when a property changes. */
-window.livelyPropertyListener = function(name, val) {
+/** Unified settings applier */
+function applyCfgProperty(name, val) {
   switch (name) {
     case 'font_size':
+    case 'fontSize':
       CFG.fontSize = parseInt(val);
       drops = null; doResize(); break;
     case 'speed':
+    case 'speedRaw':
       CFG.speedRaw = parseInt(val); refreshCache(); break;
     case 'fade':
+    case 'fadeRaw':
       CFG.fadeRaw = parseInt(val); refreshCache(); break;
     case 'fps':
       CFG.fps = parseInt(val); interval = 1000 / CFG.fps; break;
@@ -1013,19 +1018,32 @@ window.livelyPropertyListener = function(name, val) {
         colActive[i] = (Math.random() * 100 < CFG.density) ? 1 : 0;
       break;
     case 'anim_mode':
+    case 'animMode':
       CFG.animMode = parseInt(val); clearToBg(); break;
-    case 'head_color': {
-      // Lively sends "R, G, B, A" string
+    case 'head_color':
+    case 'headHex': {
+      // Handle Lively/WE color formats
       if (typeof val === 'string') {
-        const p = val.split(',').map(v => parseInt(v.trim()));
-        CFG.headHex = '#' + p.slice(0,3).map(n => n.toString(16).padStart(2,'0')).join('');
+        if (val.includes(',')) { // Lively: "R,G,B,A"
+          const p = val.split(',').map(v => parseInt(v.trim()));
+          CFG.headHex = '#' + p.slice(0,3).map(n => n.toString(16).padStart(2,'0')).join('');
+        } else if (val.includes(' ')) { // WE: "R G B" floats
+          const p = val.split(' ').map(v => Math.round(parseFloat(v) * 255));
+          CFG.headHex = '#' + p.map(n => n.toString(16).padStart(2,'0')).join('');
+        } else { CFG.headHex = val; }
       } else { CFG.headHex = val; }
       setAccent(CFG.headHex); refreshCache(); clearToBg(); break;
     }
-    case 'bg_color': {
+    case 'bg_color':
+    case 'bgHex': {
       if (typeof val === 'string') {
-        const p = val.split(',').map(v => parseInt(v.trim()));
-        CFG.bgHex = '#' + p.slice(0,3).map(n => n.toString(16).padStart(2,'0')).join('');
+        if (val.includes(',')) {
+          const p = val.split(',').map(v => parseInt(v.trim()));
+          CFG.bgHex = '#' + p.slice(0,3).map(n => n.toString(16).padStart(2,'0')).join('');
+        } else if (val.includes(' ')) {
+          const p = val.split(' ').map(v => Math.round(parseFloat(v) * 255));
+          CFG.bgHex = '#' + p.map(n => n.toString(16).padStart(2,'0')).join('');
+        } else { CFG.bgHex = val; }
       } else { CFG.bgHex = val; }
       refreshCache(); clearToBg(); break;
     }
@@ -1035,19 +1053,37 @@ window.livelyPropertyListener = function(name, val) {
     case 'pause':
       setPaused(!!val); break;
     case 'clock_size':
+    case 'clockSize':
       CFG.clockSize = parseInt(val);
       if (typeof applyClockStyle === 'function') applyClockStyle(); break;
     case 'clock_opacity':
+    case 'clockOpacity':
       CFG.clockOpacity = parseInt(val);
       if (typeof applyClockStyle === 'function') applyClockStyle(); break;
     case 'show_clock':
+    case 'showClock':
       CFG.showClock = !!val;
       if (typeof applyClockStyle === 'function') applyClockStyle(); break;
     case 'rainbow_letters':
+    case 'rainbowLetters':
       CFG.rainbowLetters = !!val; clearToBg(); break;
   }
   syncUI();
   saveSettings(CFG);
+}
+
+// Lively Hook
+window.livelyPropertyListener = function(name, val) {
+  applyCfgProperty(name, val);
+};
+
+// Wallpaper Engine Hook
+window.wallpaperPropertyListener = {
+  applyUserProperties: function(properties) {
+    for (const key in properties) {
+      applyCfgProperty(key, properties[key].value);
+    }
+  }
 };
 
 /* ═══════════════════════════════════════════════════════════════════
