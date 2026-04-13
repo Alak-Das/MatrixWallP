@@ -1,4 +1,4 @@
-# 🕉️ Sanskrit Matrix – Dynamic Desktop Wallpaper v2.0
+# 🕉️ Sanskrit Matrix – Dynamic Desktop Wallpaper v2.1
 
 A Matrix-style falling-glyph live wallpaper using the **full Unicode Devanagari / Sanskrit** character set.  
 Built with pure **HTML5 Canvas** — no frameworks, no dependencies — for minimal CPU/GPU usage.
@@ -42,6 +42,9 @@ All enabled sets are drawn in **random order** — every glyph is picked uniform
 | 14 | **Wallpaper Engine** — `project.json` for easy WE import |
 | 15 | **Debounced resize** — 150 ms debounce prevents thrashing during window drag |
 | 16 | **Cached draw constants** — COLORS, rows, speed, fadeAlpha computed once on change, not per frame |
+| 17 | **HTC-Style Flip Clock** — Customizable 3D flip clock with adjustable size, opacity, and position |
+| 18 | **Animation Styles** — Choose between Falling (Matrix classic), Blinking (twinkling), or Mixed |
+| 19 | **Performance Batching** — Optimized draw loop with state-change batching and precomputed color strings |
 
 ---
 
@@ -100,6 +103,9 @@ All settings are saved automatically to `localStorage` and persist across restar
 | **FPS Cap** | 6–60 fps |
 | **Density** | 20%–100% active columns |
 | **Character Sets** | Vowels / Consonants / Mātrās / Vedic / Digits / Siddham / Extended / Katakana |
+| **Anim Style** | Choose Falling, Blinking, or Mixed animation modes |
+| **Clock Size** | Adjust the scale of the flip clock (40%–180%) |
+| **Opacity** | Change the transparency of the clock |
 | **Export / Import** | Share or restore settings as JSON |
 | **⏸ Pause** | Freeze animation (also: `Space` key) |
 | **↺ Reset** | Restore all settings to defaults |
