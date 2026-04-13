@@ -251,7 +251,7 @@
     .fc-pair { display: flex; gap: 2px; }
 
     .fc-sep {
-      font: 700 52px/1 'Roboto Mono','Courier New',monospace;
+      font: 900 58px/1 'Roboto Mono','Courier New',monospace;
       color: rgba(255,255,255,.75);
       text-shadow: 0 0 14px rgba(255,255,255,.18);
       margin-top: -10px;
@@ -315,7 +315,7 @@
       position: absolute;
       left: 0; right: 0;
       text-align: center;
-      font: 700 60px/88px 'Roboto Mono','Courier New',monospace;
+      font: 900 66px/88px 'Roboto Mono','Courier New',monospace;
       color: #e4e4e4;
       text-shadow: 0 2px 4px rgba(0,0,0,.8);
       height: 88px;
@@ -444,8 +444,8 @@
   <p class="section-label">⏱ Flip Clock</p>
   <div class="row">
     <label>Clock Size</label>
-    <input type="range" id="rClockSize" min="40" max="180" step="10" value="100" />
-    <span class="val" id="vClockSize">1×</span>
+    <input type="range" id="rClockSize" min="40" max="180" step="10" value="150" />
+    <span class="val" id="vClockSize">1.5×</span>
   </div>
   <div class="row">
     <label>Opacity</label>
@@ -560,7 +560,7 @@ const DEFAULTS = {
   bgHex      : '#000000',
   density    : 100,    // % of columns active
   enabledSets: { vowels:true, consonants:true, maatras:true, vedic:true, digits:true, siddham:true, extended:true, katakana:false },
-  clockSize   : 100,   // scale % (40–180)
+  clockSize   : 150,   // scale % (40–180)
   clockOpacity: 90,    // opacity % (10–100)
   showClock   : true,
   rainbowLetters: false,

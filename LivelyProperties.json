@@ -72,7 +72,7 @@
   "clock_size": {
     "type": "slider",
     "text": "Clock Size %",
-    "value": 100,
+    "value": 150,
     "min": 40,
     "max": 180,
     "step": 10
