@@ -384,13 +384,13 @@
   <hr class="divider" />
   <p class="section-label">Animation</p>
 
-  <div class="row">
+  <div class="row" style="margin-bottom: 8px">
     <label>Anim Style</label>
-    <select id="sAnimMode" style="flex:1.7; background:rgba(255,255,255,.12); color:#fff; border:none; border-radius:4px; font-size:11px; padding:3px; outline:none; cursor:pointer">
-      <option value="0" style="background:#111">Falling</option>
-      <option value="1" style="background:#111">Blinking</option>
-      <option value="2" style="background:#111">Mixed</option>
-    </select>
+    <div style="flex:1.7; display:flex; gap:6px; font-size:10px">
+      <label style="display:flex; align-items:center; cursor:pointer"><input type="radio" name="animMode" value="0" id="radMode0" style="margin-right:2px; accent-color:var(--accent)"> Fall</label>
+      <label style="display:flex; align-items:center; cursor:pointer"><input type="radio" name="animMode" value="1" id="radMode1" style="margin-right:2px; accent-color:var(--accent)"> Blink</label>
+      <label style="display:flex; align-items:center; cursor:pointer"><input type="radio" name="animMode" value="2" id="radMode2" style="margin-right:2px; accent-color:var(--accent)"> Mix</label>
+    </div>
   </div>
 
   <div class="row">
@@ -1243,7 +1243,6 @@ const elSpeed   = document.getElementById('rSpeed');
 const elFade    = document.getElementById('rFade');
 const elFps     = document.getElementById('rFps');
 const elDensity = document.getElementById('rDensity');
-const elAnimMode= document.getElementById('sAnimMode');
 const elHead    = document.getElementById('cHead');
 const elBg      = document.getElementById('cBg');
 const vSize     = document.getElementById('vSize');
@@ -1262,7 +1261,14 @@ function syncUI() {
   elFade.value    = CFG.fadeRaw;
   elFps.value     = CFG.fps;
   elDensity.value = CFG.density;
-  if(elAnimMode) elAnimMode.value = CFG.animMode;
+  
+  const r0 = document.getElementById('radMode0');
+  const r1 = document.getElementById('radMode1');
+  const r2 = document.getElementById('radMode2');
+  if (r0) r0.checked = (CFG.animMode === 0);
+  if (r1) r1.checked = (CFG.animMode === 1);
+  if (r2) r2.checked = (CFG.animMode === 2);
+
   elHead.value    = CFG.headHex;
   elBg.value      = CFG.bgHex;
 
@@ -1328,12 +1334,16 @@ elDensity.addEventListener('input', () => {
     colActive[i] = (Math.random() * 100 < CFG.density) ? 1 : 0;
   save();
 });
-if (elAnimMode) {
-  elAnimMode.addEventListener('change', () => {
-    CFG.animMode = parseInt(elAnimMode.value);
-    clearToBg(); save();
+
+document.querySelectorAll('input[name="animMode"]').forEach(rad => {
+  rad.addEventListener('change', () => {
+    if (rad.checked) {
+      CFG.animMode = parseInt(rad.value);
+      clearToBg(); save();
+    }
   });
-}
+});
+
 elHead.addEventListener('input', () => {
   CFG.headHex = elHead.value;
   setAccent(CFG.headHex);
