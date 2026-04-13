@@ -771,6 +771,10 @@ function doResize() {
   const newCols = Math.floor(logW / CFG.fontSize);
   if (!drops || newCols !== cols) initColumns(newCols);
 
+  // #16 Cache font state to avoid per-frame settings overhead
+  ctx.font         = `${CFG.fontSize}px "Noto Sans Devanagari","Mangal",monospace`;
+  ctx.textBaseline = 'top';
+
   ctx.fillStyle = CFG.bgHex;
   ctx.fillRect(0, 0, logW, logH);
 }
@@ -793,10 +797,6 @@ function draw() {
   ctx.fillStyle = cFadeString;
   ctx.fillRect(0, 0, window.innerWidth, window.innerHeight);
 
-  // ② Set common font baseline once
-  ctx.font         = `${fs}px "Noto Sans Devanagari","Mangal",monospace`;
-  ctx.textBaseline = 'top';
-
   // ③ Physics: Update trailing history (y is BEFORE advancement)
   if (CFG.animMode !== 1) { // 0: Falling, 2: Mixed
     for (let col = 0; col < cols; col++) {
@@ -804,11 +804,14 @@ function draw() {
       
       drawY[col] = Math.floor(drops[col]);
       
-      if (drawY[col] !== lastRowY[col] && lastRowY[col] >= 0) {
-        trailBuf[col].unshift({ row: lastRowY[col], ch: glyphs[col] });
+      const dy = drawY[col];
+      const ly = lastRowY[col];
+
+      if (dy !== ly && ly >= 0) {
+        trailBuf[col].unshift({ row: ly, ch: glyphs[col] });
         if (trailBuf[col].length > 3) trailBuf[col].pop();
       }
-      if (drawY[col] >= 0) lastRowY[col] = drawY[col];
+      if (dy >= 0) lastRowY[col] = dy;
       
       flashMask[col] = (Math.random() < 0.004) ? 1 : 0;
     }
@@ -1506,47 +1509,56 @@ function showToast(msg) {
 })();
 
 /* ── Per-digit flip animator ── */
-const _fcPrev = {};
+const _fcPrev  = {};
+const _fcCache = {};
 
 function fcSetDigit(id, newVal) {
-  const el = document.getElementById('fc_' + id);
-  if (!el) return;
-
   const str     = String(newVal);
   const prevStr = _fcPrev[id];
+  if (prevStr === str) return;   // no change
   _fcPrev[id]   = str;
 
-  const upper = el.querySelector('.fc-upper span');
-  const lower = el.querySelector('.fc-lower span');
-  const fu    = el.querySelector('.fc-fu');
-  const fl    = el.querySelector('.fc-fl');
+  // Cached DOM lookup to eliminate querySelector calls in tick loop
+  let cache = _fcCache[id];
+  if (!cache) {
+    const el = document.getElementById('fc_' + id);
+    if (!el) return;
+    cache = _fcCache[id] = {
+      el,
+      upper: el.querySelector('.fc-upper span'),
+      lower: el.querySelector('.fc-lower span'),
+      fu:    el.querySelector('.fc-fu'),
+      fl:    el.querySelector('.fc-fl'),
+      fus:   el.querySelector('.fc-fu span'),
+      fls:   el.querySelector('.fc-fl span')
+    };
+  }
 
   if (prevStr === undefined) {
     // First render — no animation
-    upper.textContent = str;
-    lower.textContent = str;
-    fu.querySelector('span').textContent = str;
-    fl.querySelector('span').textContent = str;
+    cache.upper.textContent = str;
+    cache.lower.textContent = str;
+    cache.fus.textContent = str;
+    cache.fls.textContent = str;
     return;
   }
-  if (prevStr === str) return;   // no change
 
   // Prepare flip overlays with old/new values
-  fu.querySelector('span').textContent = prevStr;
-  fl.querySelector('span').textContent = str;
+  cache.fus.textContent = prevStr;
+  cache.fls.textContent = str;
 
   // Reset animation cleanly
-  fu.classList.remove('fc-go');
-  fl.classList.remove('fc-go');
-  void el.offsetWidth;            // force reflow
+  cache.fu.classList.remove('fc-go');
+  cache.fl.classList.remove('fc-go');
+  void cache.el.offsetWidth;            // force reflow
 
   // Update static cards to the NEW value (revealed after flip)
-  upper.textContent = str;
-  lower.textContent = str;
+  cache.upper.textContent = str;
+  cache.lower.textContent = str;
 
   // Start the flip
-  fu.classList.add('fc-go');
-  fl.classList.add('fc-go');
+  cache.fu.classList.add('fc-go');
+  cache.fl.classList.add('fc-go');
 }
 
 /* ── Tick — runs every second ── */
