@@ -383,6 +383,15 @@
   <p class="section-label">Animation</p>
 
   <div class="row">
+    <label>Anim Style</label>
+    <select id="sAnimMode" style="flex:1.7; background:rgba(255,255,255,.12); color:#fff; border:none; border-radius:4px; font-size:11px; padding:3px; outline:none; cursor:pointer">
+      <option value="0" style="background:#111">Falling</option>
+      <option value="1" style="background:#111">Blinking</option>
+      <option value="2" style="background:#111">Mixed</option>
+    </select>
+  </div>
+
+  <div class="row">
     <label>Glyph Size</label>
     <input type="range" id="rSize" min="10" max="40" step="1" value="18" />
     <span class="val" id="vSize">18px</span>
@@ -560,6 +569,7 @@ const DEFAULTS = {
   bgHex      : '#000000',
   density    : 100,    // % of columns active
   enabledSets: { vowels:true, consonants:true, maatras:true, vedic:true, digits:true, siddham:true, extended:true, katakana:false },
+  animMode    : 0,
   clockSize   : 150,   // scale % (40–180)
   clockOpacity: 90,    // opacity % (10–100)
   showClock   : true,
@@ -776,99 +786,127 @@ function draw() {
   const drawY = new Int32Array(cols);
   const flashMask = new Uint8Array(cols);
 
-  for (let col = 0; col < cols; col++) {
-    if (!colActive[col]) continue;
-    
-    drawY[col] = Math.floor(drops[col]);
-    
-    if (drawY[col] !== lastRowY[col] && lastRowY[col] >= 0) {
-      trailBuf[col].unshift({ row: lastRowY[col], ch: glyphs[col] });
-      if (trailBuf[col].length > 3) trailBuf[col].pop();
+  if (CFG.animMode !== 1) { // 0: Falling, 2: Mixed
+    for (let col = 0; col < cols; col++) {
+      if (!colActive[col]) continue;
+      
+      drawY[col] = Math.floor(drops[col]);
+      
+      if (drawY[col] !== lastRowY[col] && lastRowY[col] >= 0) {
+        trailBuf[col].unshift({ row: lastRowY[col], ch: glyphs[col] });
+        if (trailBuf[col].length > 3) trailBuf[col].pop();
+      }
+      if (drawY[col] >= 0) lastRowY[col] = drawY[col];
+      
+      flashMask[col] = (Math.random() < 0.004) ? 1 : 0;
     }
-    if (drawY[col] >= 0) lastRowY[col] = drawY[col];
-    
-    flashMask[col] = (Math.random() < 0.004) ? 1 : 0;
   }
 
   // ④ Grouped Trail rendering (Explicit comet-tail gradient)
   ctx.shadowBlur = 0;
   
-  if (CFG.rainbowLetters) {
-    for (let t = 0; t < 3; t++) {
-      for (let col = 0; col < cols; col++) {
-        if (!colActive[col] || !trailBuf[col][t]) continue;
-        const tr = trailBuf[col][t];
-        if (tr.row >= 0 && tr.row < cRows && tr.row < drawY[col]) {
-          ctx.fillStyle = t === 0 ? colRainbowTrail0[col] : 
-                          (t === 1 ? colRainbowTrail1[col] : colRainbowTrail2[col]);
-          ctx.fillText(tr.ch, col * fs, tr.row * fs);
+  if (CFG.animMode !== 1) {
+    if (CFG.rainbowLetters) {
+      for (let t = 0; t < 3; t++) {
+        for (let col = 0; col < cols; col++) {
+          if (!colActive[col] || !trailBuf[col][t]) continue;
+          const tr = trailBuf[col][t];
+          if (tr.row >= 0 && tr.row < cRows && tr.row < drawY[col]) {
+            ctx.fillStyle = t === 0 ? colRainbowTrail0[col] : 
+                            (t === 1 ? colRainbowTrail1[col] : colRainbowTrail2[col]);
+            ctx.fillText(tr.ch, col * fs, tr.row * fs);
+          }
         }
       }
-    }
-  } else {
-    for (let t = 0; t < 3; t++) {
-      ctx.fillStyle = TRAIL_CLRS[t];
-      for (let col = 0; col < cols; col++) {
-        if (!colActive[col] || !trailBuf[col][t]) continue;
-        const tr = trailBuf[col][t];
-        if (tr.row >= 0 && tr.row < cRows && tr.row < drawY[col]) {
-          ctx.fillText(tr.ch, col * fs, tr.row * fs);
+    } else {
+      for (let t = 0; t < 3; t++) {
+        ctx.fillStyle = TRAIL_CLRS[t];
+        for (let col = 0; col < cols; col++) {
+          if (!colActive[col] || !trailBuf[col][t]) continue;
+          const tr = trailBuf[col][t];
+          if (tr.row >= 0 && tr.row < cRows && tr.row < drawY[col]) {
+            ctx.fillText(tr.ch, col * fs, tr.row * fs);
+          }
         }
       }
     }
   }
 
   // ⑤ Grouped Head rendering (flashing vs normal for shadow batching)
-  
-  // Draw Normal Heads
-  ctx.shadowBlur = 6;
-  if (!CFG.rainbowLetters) {
-      ctx.shadowColor = cColors.bright;
-      ctx.fillStyle   = cColors.bright;
-  }
-  for (let col = 0; col < cols; col++) {
-     if (!colActive[col] || drawY[col] < 0 || drawY[col] >= cRows || flashMask[col]) continue;
-     if (CFG.rainbowLetters) {
-         ctx.shadowColor = colRainbowBright[col];
-         ctx.fillStyle   = colRainbowBright[col];
-     }
-     ctx.fillText(glyphs[col], col * fs, drawY[col] * fs);
-  }
+  if (CFG.animMode !== 1) {
+    // Draw Normal Heads
+    ctx.shadowBlur = 6;
+    if (!CFG.rainbowLetters) {
+        ctx.shadowColor = cColors.bright;
+        ctx.fillStyle   = cColors.bright;
+    }
+    for (let col = 0; col < cols; col++) {
+       if (!colActive[col] || drawY[col] < 0 || drawY[col] >= cRows || flashMask[col]) continue;
+       if (CFG.rainbowLetters) {
+           ctx.shadowColor = colRainbowBright[col];
+           ctx.fillStyle   = colRainbowBright[col];
+       }
+       ctx.fillText(glyphs[col], col * fs, drawY[col] * fs);
+    }
 
-  // Draw Flashing Heads
-  ctx.shadowBlur = 16;
-  if (!CFG.rainbowLetters) {
-      ctx.shadowColor = cColors.glow;
-      ctx.fillStyle   = cColors.glow;
+    // Draw Flashing Heads
+    ctx.shadowBlur = 16;
+    if (!CFG.rainbowLetters) {
+        ctx.shadowColor = cColors.glow;
+        ctx.fillStyle   = cColors.glow;
+    }
+    for (let col = 0; col < cols; col++) {
+       if (!colActive[col] || drawY[col] < 0 || drawY[col] >= cRows || !flashMask[col]) continue;
+       if (CFG.rainbowLetters) {
+           ctx.shadowColor = colRainbowGlow[col];
+           ctx.fillStyle   = colRainbowGlow[col];
+       }
+       ctx.fillText(glyphs[col], col * fs, drawY[col] * fs);
+    }
+    
+    ctx.shadowBlur = 0;
   }
-  for (let col = 0; col < cols; col++) {
-     if (!colActive[col] || drawY[col] < 0 || drawY[col] >= cRows || !flashMask[col]) continue;
-     if (CFG.rainbowLetters) {
-         ctx.shadowColor = colRainbowGlow[col];
-         ctx.fillStyle   = colRainbowGlow[col];
-     }
-     ctx.fillText(glyphs[col], col * fs, drawY[col] * fs);
-  }
-  
-  ctx.shadowBlur = 0;
 
   // ⑥ Advance physics and check for reset
-  for (let col = 0; col < cols; col++) {
-    if (!colActive[col]) continue;
-    
-    // Random glyph mutation
-    if (Math.random() < 0.03) {
-      glyphs[col] = randomChar();
-    }
+  if (CFG.animMode !== 1) {
+    for (let col = 0; col < cols; col++) {
+      if (!colActive[col]) continue;
+      
+      if (Math.random() < 0.03) {
+        glyphs[col] = randomChar();
+      }
 
-    // Advance drop
-    drops[col] += cSpeed * speeds[col];
+      drops[col] += cSpeed * speeds[col];
 
-    // Reset column
-    if (drops[col] * fs > window.innerHeight + fs * 2) {
-      resetColumn(col);
-      colActive[col] = (Math.random() * 100 < CFG.density) ? 1 : 0;
+      if (drops[col] * fs > window.innerHeight + fs * 2) {
+        resetColumn(col);
+        colActive[col] = (Math.random() * 100 < CFG.density) ? 1 : 0;
+      }
     }
+  }
+
+  // ⑦ Randomized blinking stars (Mode 1: Blinking, 2: Mixed)
+  if (CFG.animMode !== 0) {
+     const maxBlinks = Math.max(1, Math.floor((cols * cRows) * 0.002 * (CFG.density / 100) * cSpeed));
+     ctx.shadowBlur = 16;
+     
+     for (let i = 0; i < maxBlinks; i++) {
+        if (Math.random() > 0.6) continue;
+        const bc = Math.floor(Math.random() * cols);
+        const br = Math.floor(Math.random() * cRows);
+        const ch = randomChar();
+        
+        if (CFG.rainbowLetters) {
+           const h = Math.floor(Math.random() * 360);
+           ctx.fillStyle = `hsl(${h}, 100%, 95%)`;
+           ctx.shadowColor = `hsl(${h}, 100%, 95%)`;
+        } else {
+           ctx.fillStyle = cColors.glow;
+           ctx.shadowColor = cColors.glow;
+        }
+        ctx.fillText(ch, bc * fs, br * fs);
+     }
+     ctx.shadowBlur = 0;
   }
 }
 
@@ -970,6 +1008,8 @@ window.livelyPropertyListener = function(name, val) {
       if (colActive) for (let i = 0; i < cols; i++)
         colActive[i] = (Math.random() * 100 < CFG.density) ? 1 : 0;
       break;
+    case 'anim_mode':
+      CFG.animMode = parseInt(val); clearToBg(); break;
     case 'head_color': {
       // Lively sends "R, G, B, A" string
       if (typeof val === 'string') {
@@ -1156,6 +1196,7 @@ const elSpeed   = document.getElementById('rSpeed');
 const elFade    = document.getElementById('rFade');
 const elFps     = document.getElementById('rFps');
 const elDensity = document.getElementById('rDensity');
+const elAnimMode= document.getElementById('sAnimMode');
 const elHead    = document.getElementById('cHead');
 const elBg      = document.getElementById('cBg');
 const vSize     = document.getElementById('vSize');
@@ -1174,6 +1215,7 @@ function syncUI() {
   elFade.value    = CFG.fadeRaw;
   elFps.value     = CFG.fps;
   elDensity.value = CFG.density;
+  if(elAnimMode) elAnimMode.value = CFG.animMode;
   elHead.value    = CFG.headHex;
   elBg.value      = CFG.bgHex;
 
@@ -1239,6 +1281,12 @@ elDensity.addEventListener('input', () => {
     colActive[i] = (Math.random() * 100 < CFG.density) ? 1 : 0;
   save();
 });
+if (elAnimMode) {
+  elAnimMode.addEventListener('change', () => {
+    CFG.animMode = parseInt(elAnimMode.value);
+    clearToBg(); save();
+  });
+}
 elHead.addEventListener('input', () => {
   CFG.headHex = elHead.value;
   setAccent(CFG.headHex);

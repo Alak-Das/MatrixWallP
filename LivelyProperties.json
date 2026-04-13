@@ -39,6 +39,12 @@
     "max": 100,
     "step": 5
   },
+  "anim_mode": {
+    "type": "dropdown",
+    "text": "Animation Style",
+    "value": 0,
+    "items": ["Falling Only", "Blinking Only", "Mixed Mode"]
+  },
   "head_color": {
     "type": "colorpicker",
     "text": "Head Color (R,G,B,A)",
