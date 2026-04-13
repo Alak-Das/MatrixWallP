@@ -651,7 +651,7 @@ const dpr    = window.devicePixelRatio || 1;               // #12
    #16  CACHED DRAW VALUES
    Computed once whenever a setting changes — NOT on every frame.
 ───────────────────────────────────────────────────────────────── */
-let cSpeed, cFadeAlpha, cColors, cRows, cBgRgb;
+let cSpeed, cFadeAlpha, cColors, cRows, cBgRgb, cFadeString, cTrailClrs;
 
 function refreshCache() {
   cSpeed     = CFG.speedRaw / 10;
@@ -659,6 +659,10 @@ function refreshCache() {
   cColors    = deriveColors(CFG.headHex);
   cRows      = Math.ceil(window.innerHeight / CFG.fontSize);
   cBgRgb     = hexToRgb(CFG.bgHex);
+  
+  const { r, g: g_, b } = cBgRgb;
+  cFadeString           = `rgba(${r},${g_},${b},${cFadeAlpha})`;
+  cTrailClrs            = [cColors.mid, cColors.dim, cColors.faint];
 }
 refreshCache();
 
@@ -676,6 +680,13 @@ function clearToBg() {
 ───────────────────────────────────────────────────────────────── */
 let cols, drops, speeds, colBias, glyphs, colActive, lastRowY, trailBuf, colHues;
 let colRainbowGlow, colRainbowBright, colRainbowTrail0, colRainbowTrail1, colRainbowTrail2;
+let drawY, flashMask; // Global buffers to avoid per-frame allocation
+
+// #16 Precomputed palette for blinking stars
+const blinkPalette = Array.from({ length: 360 }, (_, h) => ({
+  fill: `hsl(${h}, 100%, 80%)`,
+  glow: `hsl(${h}, 100%, 55%)`
+}));
 
 function setColHue(i, h) {
   colHues[i] = h;
@@ -702,6 +713,8 @@ function initColumns(numCols) {
   colRainbowTrail0 = new Array(cols);
   colRainbowTrail1 = new Array(cols);
   colRainbowTrail2 = new Array(cols);
+  drawY            = new Int32Array(cols);
+  flashMask        = new Uint8Array(cols);
 
   for (let i = 0; i < cols; i++) {
     colBias[i]   = Math.random();
@@ -774,12 +787,10 @@ doResize();   // initial — immediate
    DRAW  (called every animation tick)
 ───────────────────────────────────────────────────────────────── */
 function draw() {
-  const fs                  = CFG.fontSize;
-  const { r, g: g_, b }    = cBgRgb;
-  const TRAIL_CLRS          = [cColors.mid, cColors.dim, cColors.faint];
+  const fs = CFG.fontSize;
 
-  // ① Fade overlay – dims the whole canvas, producing the trailing effect
-  ctx.fillStyle = `rgba(${r},${g_},${b},${cFadeAlpha})`;
+  // ① Fade overlay – dims the whole canvas (using precomputed string)
+  ctx.fillStyle = cFadeString;
   ctx.fillRect(0, 0, window.innerWidth, window.innerHeight);
 
   // ② Set common font baseline once
@@ -787,9 +798,6 @@ function draw() {
   ctx.textBaseline = 'top';
 
   // ③ Physics: Update trailing history (y is BEFORE advancement)
-  const drawY = new Int32Array(cols);
-  const flashMask = new Uint8Array(cols);
-
   if (CFG.animMode !== 1) { // 0: Falling, 2: Mixed
     for (let col = 0; col < cols; col++) {
       if (!colActive[col]) continue;
@@ -824,7 +832,7 @@ function draw() {
       }
     } else {
       for (let t = 0; t < 3; t++) {
-        ctx.fillStyle = TRAIL_CLRS[t];
+        ctx.fillStyle = cTrailClrs[t];
         for (let col = 0; col < cols; col++) {
           if (!colActive[col] || !trailBuf[col][t]) continue;
           const tr = trailBuf[col][t];
@@ -891,22 +899,21 @@ function draw() {
 
   // ⑦ Randomized blinking stars (Mode 1: Blinking, 2: Mixed)
   if (CFG.animMode !== 0) {
-     // Boosted blink density (0.002 -> 0.008) and lowered random skip for more "activity"
      const maxBlinks = Math.max(2, Math.floor((cols * cRows) * 0.008 * (CFG.density / 100) * cSpeed));
-     ctx.shadowBlur = 16;
+     ctx.shadowBlur  = 16;
      
      for (let i = 0; i < maxBlinks; i++) {
-        if (Math.random() > 0.8) continue; // More likely to spawn
+        if (Math.random() > 0.8) continue;
         const bc = Math.floor(Math.random() * cols);
         const br = Math.floor(Math.random() * cRows);
         const ch = randomChar();
         
         if (CFG.rainbowLetters) {
-           const h = Math.floor(Math.random() * 360);
-           ctx.fillStyle = `hsl(${h}, 100%, 80%)`;
-           ctx.shadowColor = `hsl(${h}, 100%, 55%)`;
+           const pair = blinkPalette[Math.floor(Math.random() * 360)];
+           ctx.fillStyle   = pair.fill;
+           ctx.shadowColor = pair.glow;
         } else {
-           ctx.fillStyle = cColors.glow;
+           ctx.fillStyle   = cColors.glow;
            ctx.shadowColor = cColors.glow;
         }
         ctx.fillText(ch, bc * fs, br * fs);
