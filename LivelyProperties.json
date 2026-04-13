@@ -1,0 +1,88 @@
+{
+  "fps": {
+    "type": "slider",
+    "text": "FPS Cap",
+    "value": 24,
+    "min": 6,
+    "max": 60,
+    "step": 3
+  },
+  "font_size": {
+    "type": "slider",
+    "text": "Glyph Size",
+    "value": 18,
+    "min": 10,
+    "max": 40,
+    "step": 1
+  },
+  "speed": {
+    "type": "slider",
+    "text": "Speed (×0.1)",
+    "value": 6,
+    "min": 1,
+    "max": 30,
+    "step": 1
+  },
+  "fade": {
+    "type": "slider",
+    "text": "Trail Length",
+    "value": 10,
+    "min": 1,
+    "max": 20,
+    "step": 1
+  },
+  "density": {
+    "type": "slider",
+    "text": "Column Density %",
+    "value": 100,
+    "min": 20,
+    "max": 100,
+    "step": 5
+  },
+  "head_color": {
+    "type": "colorpicker",
+    "text": "Head Color (R,G,B,A)",
+    "value": "0, 255, 136, 255"
+  },
+  "bg_color": {
+    "type": "colorpicker",
+    "text": "Background Color (R,G,B,A)",
+    "value": "0, 0, 0, 255"
+  },
+  "katakana": {
+    "type": "checkbox",
+    "text": "Mix Katakana Characters",
+    "value": false
+  },
+  "pause": {
+    "type": "checkbox",
+    "text": "Paused",
+    "value": false
+  },
+  "rainbow_letters": {
+    "type": "checkbox",
+    "text": "Rainbow Letters",
+    "value": false
+  },
+  "show_clock": {
+    "type": "checkbox",
+    "text": "Show Flip Clock",
+    "value": true
+  },
+  "clock_size": {
+    "type": "slider",
+    "text": "Clock Size %",
+    "value": 100,
+    "min": 40,
+    "max": 180,
+    "step": 10
+  },
+  "clock_opacity": {
+    "type": "slider",
+    "text": "Clock Opacity %",
+    "value": 90,
+    "min": 10,
+    "max": 100,
+    "step": 5
+  }
+}

@@ -1,0 +1,1500 @@
+<!DOCTYPE html>
+<html lang="sa">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sanskrit Matrix – Dynamic Wallpaper</title>
+
+  <!-- #10 – Noto Sans Devanagari from Google Fonts (fallback if not installed locally) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Devanagari:wght@400&display=swap" rel="stylesheet" />
+
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    html, body {
+      width: 100%; height: 100%;
+      overflow: hidden;
+      background: #000;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+    }
+
+    canvas { display: block; width: 100vw; height: 100vh; }
+
+    /* ── Shared floating action button style ── */
+    .fab {
+      position: fixed;
+      width: 42px; height: 42px;
+      border-radius: 50%;
+      border: 1.5px solid rgba(255,255,255,.18);
+      background: rgba(0,0,0,.55);
+      backdrop-filter: blur(10px);
+      color: #fff;
+      font-size: 18px;
+      display: flex; align-items: center; justify-content: center;
+      transition: background .2s, border-color .2s, box-shadow .2s;
+      z-index: 100;
+      user-select: none;
+      cursor: pointer;
+    }
+    .fab:hover { background: rgba(0,0,0,.8); border-color: rgba(255,255,255,.4); }
+
+    /* ── Shared dragging state ── */
+    .fab { cursor: grab; touch-action: none; }
+    .fab.dragging { cursor: grabbing; opacity: .85; box-shadow: 0 6px 24px rgba(0,0,0,.6); }
+
+    /* ── Settings toggle button ── */
+    #settingsToggle {
+      font-size: 20px;
+      /* left/top set by JS */
+    }
+    #settingsToggle.open { box-shadow: 0 0 0 2px var(--accent,#00FF88); }
+
+    /* ── Pause button ── */
+    /* left/top set by JS — starts left of the settings toggle */
+    #pauseBtn.paused {
+      box-shadow: 0 0 0 2px #FF6622;
+      border-color: rgba(255,102,34,.5);
+      color: #FF6622;
+    }
+
+    /* ── Settings panel ── */
+    #panel {
+      position: fixed;
+      width: 295px;
+      max-height: 90vh;
+      overflow-y: auto;
+      background: rgba(8,12,8,.90);
+      backdrop-filter: blur(18px);
+      border: 1px solid rgba(0,220,100,.22);
+      border-radius: 14px;
+      padding: 18px 20px 20px;
+      z-index: 99;
+      color: #ccc;
+      font-size: 13px;
+      box-shadow: 0 8px 40px rgba(0,0,0,.7), 0 0 0 1px rgba(0,200,80,.08);
+      transition: opacity .2s, transform .2s;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(0,220,100,.3) transparent;
+    }
+    #panel::-webkit-scrollbar { width: 4px; }
+    #panel::-webkit-scrollbar-thumb { background: rgba(0,220,100,.3); border-radius: 2px; }
+    #panel.hidden { opacity: 0; pointer-events: none; transform: scale(.92); }
+
+    #panel h2 {
+      font-size: 13px;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      color: var(--accent,#00FF88);
+      margin-bottom: 16px;
+      display: flex; align-items: center; gap: 8px;
+    }
+    #panel h2 span { opacity: .5; font-size: 16px; }
+
+    .section-label {
+      font-size: 10px;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,.3);
+      margin: 14px 0 8px;
+    }
+
+    .row {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 12px;
+      gap: 10px;
+    }
+    .row label { flex: 1; color: #aaa; }
+    .row .val  { min-width: 42px; text-align: right; color: var(--accent,#00FF88); font-variant-numeric: tabular-nums; font-size: 12px; }
+
+    /* Range slider */
+    input[type=range] {
+      -webkit-appearance: none; appearance: none;
+      height: 4px; border-radius: 2px; flex: 1.7;
+      background: rgba(255,255,255,.12);
+      outline: none; cursor: pointer;
+    }
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 14px; height: 14px; border-radius: 50%;
+      background: var(--accent,#00FF88);
+      box-shadow: 0 0 6px var(--accent,#00FF88);
+      cursor: pointer; transition: transform .15s;
+    }
+    input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.25); }
+
+    /* Color picker */
+    input[type=color] {
+      -webkit-appearance: none; appearance: none;
+      width: 32px; height: 24px;
+      border: 1.5px solid rgba(255,255,255,.2);
+      border-radius: 6px; cursor: pointer;
+      background: transparent; padding: 0;
+    }
+    input[type=color]::-webkit-color-swatch-wrapper { padding: 2px; border-radius: 4px; }
+    input[type=color]::-webkit-color-swatch         { border: none; border-radius: 3px; }
+
+    /* Checkbox grid */
+    .check-grid {
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: 6px 10px; margin-bottom: 10px;
+    }
+    .check-item {
+      display: flex; align-items: center; gap: 6px;
+      color: #aaa; font-size: 12px; cursor: pointer;
+    }
+    .check-item input[type=checkbox] {
+      accent-color: var(--accent,#00FF88);
+      width: 13px; height: 13px; cursor: pointer;
+    }
+
+    /* Divider */
+    .divider { border: none; border-top: 1px solid rgba(255,255,255,.07); margin: 14px 0; }
+
+    /* Action button rows */
+    .btn-row { display: flex; gap: 6px; margin-bottom: 8px; }
+    .action-btn {
+      flex: 1; padding: 7px 4px;
+      background: rgba(0,220,100,.06);
+      border: 1px solid rgba(0,220,100,.2);
+      border-radius: 8px;
+      color: var(--accent,#00FF88);
+      font-size: 11px; letter-spacing: .04em;
+      cursor: pointer; transition: background .2s;
+      text-align: center; white-space: nowrap;
+    }
+    .action-btn:hover        { background: rgba(0,220,100,.15); }
+    .action-btn.danger       { color: #ff6688; border-color: rgba(255,80,100,.25); background: rgba(255,80,100,.04); }
+    .action-btn.danger:hover { background: rgba(255,80,100,.13); }
+
+    #resetBtn {
+      width: 100%; padding: 7px; margin-top: 4px;
+      background: rgba(0,220,100,.08);
+      border: 1px solid rgba(0,220,100,.25);
+      border-radius: 8px;
+      color: var(--accent,#00FF88);
+      font-size: 12px; letter-spacing: .08em;
+      cursor: pointer; transition: background .2s;
+    }
+    #resetBtn:hover { background: rgba(0,220,100,.18); }
+
+    /* Import textarea */
+    #importArea {
+      display: none; width: 100%;
+      min-height: 64px; max-height: 120px;
+      background: rgba(0,0,0,.5);
+      border: 1px solid rgba(0,220,100,.2);
+      border-radius: 6px; color: #ccc;
+      font-size: 10px; font-family: monospace;
+      padding: 6px; resize: vertical; margin-bottom: 6px;
+    }
+    #importArea.visible { display: block; }
+
+    /* Keyboard shortcut hint */
+    .kbd-hint { margin-top: 12px; font-size: 10px; color: rgba(255,255,255,.25); text-align: center; }
+    kbd {
+      display: inline-block; padding: 1px 5px;
+      border: 1px solid rgba(255,255,255,.2); border-radius: 3px;
+      font-family: monospace; font-size: 10px;
+    }
+
+    /* Preset chips */
+    .presets { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
+    .preset-chip {
+      padding: 4px 10px; border-radius: 20px;
+      border: 1px solid rgba(255,255,255,.15);
+      background: rgba(255,255,255,.05);
+      color: #bbb; font-size: 11px; cursor: pointer;
+      transition: background .15s, border-color .15s, color .15s;
+    }
+    .preset-chip:hover, .preset-chip.active {
+      border-color: var(--accent,#00FF88);
+      color: var(--accent,#00FF88);
+      background: rgba(0,220,100,.08);
+    }
+
+    /* Toast notification */
+    #toast {
+      position: fixed;
+      bottom: 80px; left: 50%;
+      transform: translateX(-50%) translateY(10px);
+      background: rgba(0,0,0,.88);
+      border: 1px solid rgba(0,220,100,.4);
+      color: var(--accent,#00FF88);
+      font-size: 12px; padding: 6px 18px;
+      border-radius: 20px; pointer-events: none;
+      opacity: 0; transition: opacity .3s, transform .3s;
+      z-index: 200; backdrop-filter: blur(8px);
+      white-space: nowrap;
+    }
+    #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    /* ══ HTC-Style Flip Clock ══════════════════════════════════════════ */
+    #flipClock {
+      position: fixed;
+      z-index: 50;
+      touch-action: none;
+      user-select: none;
+      transform-origin: top left;
+      /* left, top, transform(scale), opacity — set by JS */
+    }
+    #flipClock:not(.dragging) { cursor: grab; }
+    #flipClock.dragging       { cursor: grabbing; }
+    .fc-display {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      filter: drop-shadow(0 6px 20px rgba(0,0,0,.75));
+    }
+    .fc-pair { display: flex; gap: 2px; }
+
+    .fc-sep {
+      font: 700 52px/1 'Roboto Mono','Courier New',monospace;
+      color: rgba(255,255,255,.75);
+      text-shadow: 0 0 14px rgba(255,255,255,.18);
+      margin-top: -10px;
+      animation: fcBlink 1s step-end infinite;
+    }
+    @keyframes fcBlink {
+      0%, 49% { opacity: 1; }
+      50%, 99% { opacity: .15; }
+    }
+
+    /* Single digit tile */
+    .fc-digit {
+      width: 62px; height: 88px;
+      position: relative;
+      perspective: 320px;
+    }
+
+    /* Shared half-card base */
+    .fc-upper, .fc-lower, .fc-fu, .fc-fl {
+      position: absolute; left: 0; right: 0;
+      height: 44px;       /* exactly half */
+      overflow: hidden;
+    }
+
+    /* Static top half */
+    .fc-upper, .fc-fu {
+      top: 0;
+      border-radius: 7px 7px 0 0;
+      background: linear-gradient(180deg, #2e2e2e 0%, #1f1f1f 100%);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.06);
+    }
+    /* Static bottom half */
+    .fc-lower, .fc-fl {
+      bottom: 0;
+      border-radius: 0 0 7px 7px;
+      background: linear-gradient(180deg, #1a1a1a 0%, #101010 100%);
+    }
+
+    /* Fold-line shadow at bottom of upper */
+    .fc-upper::after, .fc-fu::after {
+      content: '';
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      height: 3px;
+      background: #000;
+      box-shadow: 0 1px 4px rgba(0,0,0,.9);
+    }
+    /* Gloss sheen on upper half */
+    .fc-upper::before, .fc-fu::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: linear-gradient(180deg, rgba(255,255,255,.055) 0%, transparent 100%);
+      border-radius: 7px 7px 0 0;
+      pointer-events: none;
+    }
+
+    /* Number span — rendered full-height (88px), clipped by each half */
+    .fc-upper span, .fc-lower span,
+    .fc-fu    span, .fc-fl    span {
+      position: absolute;
+      left: 0; right: 0;
+      text-align: center;
+      font: 700 60px/88px 'Roboto Mono','Courier New',monospace;
+      color: #e4e4e4;
+      text-shadow: 0 2px 4px rgba(0,0,0,.8);
+      height: 88px;
+    }
+    /* Upper: span starts at top → shows rows 0-44 */
+    .fc-upper span, .fc-fu span { top: 0; }
+    /* Lower: span offset -44px up → shows rows 44-88 */
+    .fc-lower span, .fc-fl span { top: -44px; }
+
+    /* Flip overlay cards */
+    .fc-fu { z-index: 2; transform-origin: bottom center; }
+    .fc-fl { z-index: 2; transform-origin: top    center; transform: rotateX(90deg); }
+
+    @keyframes fcFlipTop    { from{transform:rotateX(0)}   to{transform:rotateX(-90deg)} }
+    @keyframes fcFlipBottom { from{transform:rotateX(90deg)} to{transform:rotateX(0)}   }
+
+    .fc-fu.fc-go { animation: fcFlipTop    0.22s ease-in          forwards; }
+    .fc-fl.fc-go { animation: fcFlipBottom 0.22s ease-out 0.22s   forwards; }
+  </style>
+</head>
+<body>
+
+<canvas id="matrix"></canvas>
+
+<!-- ⏸ Pause / Play (fixed, bottom-right) -->
+<button id="pauseBtn" class="fab" title="Pause / Play (Space)">⏸</button>
+
+<!-- ⚙ Settings toggle (draggable) -->
+<button id="settingsToggle" class="fab" title="Settings (drag to move)">⚙</button>
+
+<!-- ─────────────────── Settings Panel ─────────────────── -->
+<div id="panel" class="hidden">
+  <h2><span>ॐ</span> Matrix Settings</h2>
+
+  <!-- Color presets -->
+  <div class="presets">
+    <button class="preset-chip active" data-preset="matrix">Matrix</button>
+    <button class="preset-chip" data-preset="gold">Sanskrit Gold</button>
+    <button class="preset-chip" data-preset="cyan">Cyber Cyan</button>
+    <button class="preset-chip" data-preset="violet">Violet</button>
+    <button class="preset-chip" data-preset="fire">Fire</button>
+    <button class="preset-chip" data-preset="white">Snow</button>
+  </div>
+
+  <!-- Head color -->
+  <div class="row">
+    <label>Head Color</label>
+    <input type="color" id="cHead" value="#00FF88" />
+  </div>
+
+  <!-- Background -->
+  <div class="row">
+    <label>Background</label>
+    <input type="color" id="cBg" value="#000000" />
+  </div>
+
+  <div class="row">
+    <label>Rainbow Letters</label>
+    <label class="check-item" style="justify-content:flex-end">
+      <input type="checkbox" id="cbRainbow" /> Random
+    </label>
+  </div>
+
+  <hr class="divider" />
+  <p class="section-label">Animation</p>
+
+  <div class="row">
+    <label>Glyph Size</label>
+    <input type="range" id="rSize" min="10" max="40" step="1" value="18" />
+    <span class="val" id="vSize">18px</span>
+  </div>
+  <div class="row">
+    <label>Speed</label>
+    <input type="range" id="rSpeed" min="1" max="30" step="1" value="6" />
+    <span class="val" id="vSpeed">0.6x</span>
+  </div>
+  <div class="row">
+    <label>Trail Length</label>
+    <input type="range" id="rFade" min="1" max="20" step="1" value="10" />
+    <span class="val" id="vFade">Med</span>
+  </div>
+  <div class="row">
+    <label>FPS Cap</label>
+    <input type="range" id="rFps" min="6" max="60" step="3" value="24" />
+    <span class="val" id="vFps">24</span>
+  </div>
+
+  <!-- #6 Density slider -->
+  <div class="row">
+    <label>Density</label>
+    <input type="range" id="rDensity" min="20" max="100" step="5" value="100" />
+    <span class="val" id="vDensity">100%</span>
+  </div>
+
+  <hr class="divider" />
+
+  <!-- #7 Character set selector -->
+  <p class="section-label">Character Sets</p>
+  <div class="check-grid">
+    <label class="check-item"><input type="checkbox" id="csVowels"     checked /> Vowels</label>
+    <label class="check-item"><input type="checkbox" id="csConsonants" checked /> Consonants</label>
+    <label class="check-item"><input type="checkbox" id="csMaatras"    checked /> Mātrās</label>
+    <label class="check-item"><input type="checkbox" id="csVedic"      checked /> Vedic</label>
+    <label class="check-item"><input type="checkbox" id="csDigits"     checked /> Digits</label>
+    <label class="check-item"><input type="checkbox" id="csSiddham"    checked /> Siddham</label>
+    <label class="check-item"><input type="checkbox" id="csExtended"   checked /> Extended</label>
+    <!-- #5 Katakana mix mode -->
+    <label class="check-item"><input type="checkbox" id="csKatakana"           /> Katakana</label>
+  </div>
+
+  <hr class="divider" />
+
+  <!-- #8 Export / Import  |  #9 Pause panel btn -->
+  <div class="btn-row">
+    <button class="action-btn" id="exportBtn">📋 Export</button>
+    <button class="action-btn" id="importToggleBtn">📥 Import</button>
+    <button class="action-btn" id="pausePanelBtn">⏸ Pause</button>
+  </div>
+  <textarea id="importArea" placeholder="Paste config JSON here…"></textarea>
+  <div class="btn-row" id="importApplyRow" style="display:none">
+    <button class="action-btn" id="importApplyBtn">✓ Apply</button>
+    <button class="action-btn danger" id="importCancelBtn">✗ Cancel</button>
+  </div>
+
+  <hr class="divider" />
+  <p class="section-label">⏱ Flip Clock</p>
+  <div class="row">
+    <label>Clock Size</label>
+    <input type="range" id="rClockSize" min="40" max="180" step="10" value="100" />
+    <span class="val" id="vClockSize">1×</span>
+  </div>
+  <div class="row">
+    <label>Opacity</label>
+    <input type="range" id="rClockOpacity" min="10" max="100" step="5" value="90" />
+    <span class="val" id="vClockOpacity">90%</span>
+  </div>
+  <div class="row">
+    <label>Show Clock</label>
+    <label class="check-item" style="justify-content:flex-end">
+      <input type="checkbox" id="cbShowClock" checked /> Visible
+    </label>
+  </div>
+
+  <button id="resetBtn">↺ Reset to Defaults</button>
+
+  <!-- Keyboard shortcuts hint -->
+  <p class="kbd-hint">
+    <kbd>Space</kbd> Pause &nbsp;·&nbsp; <kbd>Click</kbd> canvas = Ripple
+  </p>
+</div>
+
+<!-- Toast -->
+<div id="toast"></div>
+
+<!-- Flip Clock (structure built by JS) -->
+<div id="flipClock"><div class="fc-display" id="fcDisplay"></div></div>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════════
+   Sanskrit Matrix Dynamic Wallpaper  –  Pure HTML5 Canvas  v2.0
+   ──────────────────────────────────────────────────────────────────
+   Improvements over v1:
+   #1  Per-column speed multiplier (organic, non-uniform rainfall)
+   #2  Explicit comet-tail gradient (mid→dim→faint near head)
+   #3  Per-column reset bias (sparse ↔ dense column variety)
+   #4  Ripple effect on canvas click
+   #5  Katakana mix mode (character-set checkbox)
+   #6  Density slider (% active columns)
+   #7  Character-set checkboxes (vowels, consonants, mātrās…)
+   #8  Export / Import config (clipboard + textarea fallback)
+   #9  Pause / Play button + Space key shortcut
+   #10 Google Fonts preload for Noto Sans Devanagari (in <head>)
+   #11 alpha:false + DPR comments (see canvas setup below)
+   #12 devicePixelRatio-aware canvas → crisp on HiDPI displays
+   #13 livelyPropertyListener() for Lively Wallpaper (LivelyProperties.json)
+   #14 project.json created for Wallpaper Engine
+   #15 Debounced resize handler (150 ms)
+   #16 Draw constants cached at module level, refreshed on change
+═══════════════════════════════════════════════════════════════════ */
+
+/* ─────────────────────────────────────────────────────────────────
+   #7 / #5  CHARACTER SETS
+───────────────────────────────────────────────────────────────── */
+const CHAR_SETS = {
+  // All independent vowels incl. rare/Vedic: अ–औ + ऋ ऌ ॠ ॡ ऍ ऎ ऑ ऒ ऄ
+  vowels    : 'अआइईउऊएऐओऔऋऌऍऎऑऒॠॡ\u0904',
+
+  // Base consonants + nukta variants (क़ ख़ ग़ ज़ ड़ ढ़ फ़ य़) + additional (ऩ ऱ ळ ऴ)
+  consonants: 'कखगघङचछजझञटठडढणतथदधनपफबभमयरलवशषसहऩऱळक़ख़ग़ज़ड़ढ़फ़य़',
+
+  // All vowel signs / mātrās incl. rare (ॄ ॅ ॆ ॉ ॊ ॢ ॣ) + avagraha + visarga signs
+  maatras   : 'ािीुूृॄॅॆेैॉॊोौ्ॢॣ\u0955\u0956\u0957ंःँऽ',
+
+  // Core Vedic – OM, dandas, accents (udātta ॒ svarita ॑)
+  vedic     : 'ॐ।॥॰ॱ॒॑',
+
+  // Devanagari digits
+  digits    : '०१२३४५६७८९',
+
+  // Siddham-range combining marks (U+1CD0 Vedic Extension block)
+  siddham   : '᳐᳑᳒᳓᳔᳕᳖᳗᳘᳙᳜᳝᳞᳟᳚᳛᳠᳡᳢᳣᳤᳥᳦᳧ᳩᳫᳬᳮᳯᳰᳱᳲᳳ',
+
+  // Devanagari Extended block U+0972–U+097F (ॲ ॳ ॴ … ॿ) + U+A8E0–U+A8F7 svara marks
+  extended  : 'ॲॳॴॵॶॷॸॹॺॻॼॽॾॿ' +
+              '\uA8E0\uA8E1\uA8E2\uA8E3\uA8E4\uA8E5\uA8E6\uA8E7' +
+              '\uA8E8\uA8E9\uA8EA\uA8EB\uA8EC\uA8ED\uA8EE\uA8EF' +
+              '\uA8F0\uA8F1\uA8F2\uA8F3\uA8F4\uA8F5\uA8F6\uA8F7',
+
+  // #5 – Katakana for hybrid Matrix/Sanskrit look
+  katakana  : 'アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲン',
+};
+
+/* ─────────────────────────────────────────────────────────────────
+   COLOUR PRESETS
+───────────────────────────────────────────────────────────────── */
+const PRESETS = {
+  matrix : { head:'#00FF88', bg:'#000000' },
+  gold   : { head:'#FFD700', bg:'#0a0600' },
+  cyan   : { head:'#00EFFF', bg:'#000a0f' },
+  violet : { head:'#CC88FF', bg:'#08000f' },
+  fire   : { head:'#FF6622', bg:'#0f0200' },
+  white  : { head:'#FFFFFF', bg:'#000000' },
+};
+
+/* ─────────────────────────────────────────────────────────────────
+   TRAIL FADE MAPPING   slider 1–20 → overlay alpha
+───────────────────────────────────────────────────────────────── */
+function fadeFromSlider(v) { 
+  if (v >= 20) return 1.0;  // True instant clear
+  return 0.02 + (v - 1) * (0.16 / 18); 
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   DEFAULT CONFIG
+───────────────────────────────────────────────────────────────── */
+const DEFAULTS = {
+  fontSize   : 18,
+  speedRaw   : 6,      // slider int; actual speed = speedRaw / 10
+  fadeRaw    : 10,     // slider int
+  fps        : 24,
+  headHex    : '#00FF88',
+  bgHex      : '#000000',
+  density    : 100,    // % of columns active
+  enabledSets: { vowels:true, consonants:true, maatras:true, vedic:true, digits:true, siddham:true, extended:true, katakana:false },
+  clockSize   : 100,   // scale % (40–180)
+  clockOpacity: 90,    // opacity % (10–100)
+  showClock   : true,
+  rainbowLetters: false,
+};
+
+/* ─────────────────────────────────────────────────────────────────
+   PERSIST SETTINGS
+───────────────────────────────────────────────────────────────── */
+function loadSettings() {
+  try {
+    const s = JSON.parse(localStorage.getItem('matrixCfg') || '{}');
+    if (s.enabledSets) s.enabledSets = { ...DEFAULTS.enabledSets, ...s.enabledSets };
+    return { ...DEFAULTS, ...s };
+  } catch { return { ...DEFAULTS }; }
+}
+function saveSettings(cfg) {
+  try { localStorage.setItem('matrixCfg', JSON.stringify(cfg)); } catch {}
+}
+
+let CFG = loadSettings();
+
+/* ─────────────────────────────────────────────────────────────────
+   CHAR POOL (rebuilt whenever enabled sets change)
+───────────────────────────────────────────────────────────────── */
+function buildCharPool() {
+  let pool = '';
+  for (const key of Object.keys(CHAR_SETS)) {
+    if (CFG.enabledSets[key]) pool += CHAR_SETS[key];
+  }
+  // Guarantee at least one fallback set
+  return pool ? pool.split('') : (CHAR_SETS.vowels + CHAR_SETS.consonants).split('');
+}
+let CHARS = buildCharPool();
+
+/* ─────────────────────────────────────────────────────────────────
+   HELPERS
+───────────────────────────────────────────────────────────────── */
+function hexToRgb(hex) {
+  return {
+    r: parseInt(hex.slice(1,3), 16),
+    g: parseInt(hex.slice(3,5), 16),
+    b: parseInt(hex.slice(5,7), 16),
+  };
+}
+
+/** Derive the 4-step trail palette from the head colour. */
+function deriveColors(headHex) {
+  const {r,g,b} = hexToRgb(headHex);
+  return {
+    bright: headHex,
+    glow  : '#FFFFFF',
+    mid   : `rgb(${Math.round(r*.72)},${Math.round(g*.72)},${Math.round(b*.72)})`,
+    dim   : `rgb(${Math.round(r*.40)},${Math.round(g*.40)},${Math.round(b*.40)})`,
+    faint : `rgb(${Math.round(r*.18)},${Math.round(g*.18)},${Math.round(b*.18)})`,
+  };
+}
+
+function randomChar()      { return CHARS[Math.floor(Math.random() * CHARS.length)]; }
+function randBetween(a, b) { return a + Math.random() * (b - a); }
+
+/* ─────────────────────────────────────────────────────────────────
+   #12  CANVAS + DEVICE PIXEL RATIO
+   alpha:false   → compositor skips per-pixel transparency; we repaint
+                   every CSS pixel each frame so this is always safe and fast.
+   DPR scaling   → backing buffer is dpr× larger in each dimension so that
+                   glyphs are pixel-crisp on HiDPI / Retina displays while
+                   ALL draw coordinates remain in CSS (logical) pixels.
+───────────────────────────────────────────────────────────────── */
+const canvas = document.getElementById('matrix');
+const ctx    = canvas.getContext('2d', { alpha: false });  // #11
+const dpr    = window.devicePixelRatio || 1;               // #12
+
+/* ─────────────────────────────────────────────────────────────────
+   #16  CACHED DRAW VALUES
+   Computed once whenever a setting changes — NOT on every frame.
+───────────────────────────────────────────────────────────────── */
+let cSpeed, cFadeAlpha, cColors, cRows, cBgRgb;
+
+function refreshCache() {
+  cSpeed     = CFG.speedRaw / 10;
+  cFadeAlpha = fadeFromSlider(CFG.fadeRaw);
+  cColors    = deriveColors(CFG.headHex);
+  cRows      = Math.ceil(window.innerHeight / CFG.fontSize);
+  cBgRgb     = hexToRgb(CFG.bgHex);
+}
+refreshCache();
+
+function clearToBg() {
+  if (ctx) {
+    ctx.fillStyle = CFG.bgHex;
+    ctx.fillRect(0, 0, window.innerWidth, window.innerHeight);
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   #1 / #3  COLUMN STATE ARRAYS
+   speeds   – per-column speed multiplier (0.6–1.4×)  →  #1
+   colBias  – per-column 0-1 reset eagerness           →  #3 sparse/dense
+───────────────────────────────────────────────────────────────── */
+let cols, drops, speeds, colBias, glyphs, colActive, lastRowY, trailBuf, colHues;
+let colRainbowGlow, colRainbowBright, colRainbowTrail0, colRainbowTrail1, colRainbowTrail2;
+
+function setColHue(i, h) {
+  colHues[i] = h;
+  colRainbowGlow[i] = `hsl(${h}, 100%, 95%)`;
+  colRainbowBright[i] = `hsl(${h}, 100%, 65%)`;
+  colRainbowTrail0[i] = `hsla(${h}, 100%, 75%, 0.8)`;
+  colRainbowTrail1[i] = `hsla(${h}, 100%, 75%, 0.5)`;
+  colRainbowTrail2[i] = `hsla(${h}, 100%, 75%, 0.25)`;
+}
+
+function initColumns(numCols) {
+  cols     = numCols;
+  drops    = new Float32Array(cols);
+  speeds   = new Float32Array(cols);
+  colBias  = new Float32Array(cols);   // 0 = dense / long run, 1 = sparse / short run
+  glyphs   = new Array(cols);
+  colActive= new Uint8Array(cols);
+  lastRowY = new Int32Array(cols).fill(-999);
+  trailBuf = Array.from({ length: cols }, () => []);   // [{row,ch}, …]
+  colHues  = new Int32Array(cols);
+
+  colRainbowGlow   = new Array(cols);
+  colRainbowBright = new Array(cols);
+  colRainbowTrail0 = new Array(cols);
+  colRainbowTrail1 = new Array(cols);
+  colRainbowTrail2 = new Array(cols);
+
+  for (let i = 0; i < cols; i++) {
+    colBias[i]   = Math.random();
+    speeds[i]    = 0.6 + Math.random() * 0.8;                         // #1
+    drops[i]     = randBetween(-cRows * (0.4 + colBias[i] * 0.6), 0); // #3 staggered start
+    glyphs[i]    = randomChar();
+    setColHue(i, Math.floor(Math.random() * 360));
+    colActive[i] = (Math.random() * 100 < CFG.density) ? 1 : 0;
+  }
+}
+
+function resetColumn(col) {
+  /* ── Guarantee completely clean background after each stream ──────────────
+     The semi-transparent fade overlay asymptotically approaches bg colour
+     but can never reach it exactly (integer rounding floor).  Painting an
+     opaque bg stripe over the whole column on reset ensures every pixel
+     returns to a pure, solid background colour with no residual glow.      */
+  if (ctx) {
+    const fs = CFG.fontSize;
+    ctx.fillStyle = CFG.bgHex;
+    // +2 px width guards against sub-pixel glyph bleed into adjacent column
+    ctx.fillRect(col * fs, 0, fs + 2, window.innerHeight);
+  }
+
+  // Random wait encoded as a negative drop start — larger colBias → longer gap
+  drops[col]    = randBetween(-cRows * (0.5 + colBias[col] * 0.8), -2);
+  glyphs[col]   = randomChar();
+  setColHue(col, Math.floor(Math.random() * 360));
+  trailBuf[col] = [];
+  lastRowY[col] = -999;
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   #15  RESIZE  –  debounced 150 ms + DPR-aware
+   Setting canvas.width/height resets the 2D transform, so we only
+   do it when the physical size actually changes, then re-apply scale.
+───────────────────────────────────────────────────────────────── */
+let resizeTimer;
+
+function doResize() {
+  const logW  = window.innerWidth;
+  const logH  = window.innerHeight;
+  const physW = Math.round(logW * dpr);
+  const physH = Math.round(logH * dpr);
+
+  if (canvas.width !== physW || canvas.height !== physH) {
+    canvas.width  = physW;
+    canvas.height = physH;
+    ctx.scale(dpr, dpr);   // re-apply after the automatic transform reset
+  }
+
+  refreshCache();           // #16 update cached rows / colours after resize
+
+  const newCols = Math.floor(logW / CFG.fontSize);
+  if (!drops || newCols !== cols) initColumns(newCols);
+
+  ctx.fillStyle = CFG.bgHex;
+  ctx.fillRect(0, 0, logW, logH);
+}
+
+window.addEventListener('resize', () => {
+  drops = null;             // force column re-init after resize
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(doResize, 150);   // #15 debounce
+});
+
+doResize();   // initial — immediate
+
+/* ─────────────────────────────────────────────────────────────────
+   DRAW  (called every animation tick)
+───────────────────────────────────────────────────────────────── */
+function draw() {
+  const fs                  = CFG.fontSize;
+  const { r, g: g_, b }    = cBgRgb;
+  const TRAIL_CLRS          = [cColors.mid, cColors.dim, cColors.faint];
+
+  // ① Fade overlay – dims the whole canvas, producing the trailing effect
+  ctx.fillStyle = `rgba(${r},${g_},${b},${cFadeAlpha})`;
+  ctx.fillRect(0, 0, window.innerWidth, window.innerHeight);
+
+  // ② Set common font baseline once
+  ctx.font         = `${fs}px "Noto Sans Devanagari","Mangal",monospace`;
+  ctx.textBaseline = 'top';
+
+  // ③ Physics: Update trailing history (y is BEFORE advancement)
+  const drawY = new Int32Array(cols);
+  const flashMask = new Uint8Array(cols);
+
+  for (let col = 0; col < cols; col++) {
+    if (!colActive[col]) continue;
+    
+    drawY[col] = Math.floor(drops[col]);
+    
+    if (drawY[col] !== lastRowY[col] && lastRowY[col] >= 0) {
+      trailBuf[col].unshift({ row: lastRowY[col], ch: glyphs[col] });
+      if (trailBuf[col].length > 3) trailBuf[col].pop();
+    }
+    if (drawY[col] >= 0) lastRowY[col] = drawY[col];
+    
+    flashMask[col] = (Math.random() < 0.004) ? 1 : 0;
+  }
+
+  // ④ Grouped Trail rendering (Explicit comet-tail gradient)
+  ctx.shadowBlur = 0;
+  
+  if (CFG.rainbowLetters) {
+    for (let t = 0; t < 3; t++) {
+      for (let col = 0; col < cols; col++) {
+        if (!colActive[col] || !trailBuf[col][t]) continue;
+        const tr = trailBuf[col][t];
+        if (tr.row >= 0 && tr.row < cRows && tr.row < drawY[col]) {
+          ctx.fillStyle = t === 0 ? colRainbowTrail0[col] : 
+                          (t === 1 ? colRainbowTrail1[col] : colRainbowTrail2[col]);
+          ctx.fillText(tr.ch, col * fs, tr.row * fs);
+        }
+      }
+    }
+  } else {
+    for (let t = 0; t < 3; t++) {
+      ctx.fillStyle = TRAIL_CLRS[t];
+      for (let col = 0; col < cols; col++) {
+        if (!colActive[col] || !trailBuf[col][t]) continue;
+        const tr = trailBuf[col][t];
+        if (tr.row >= 0 && tr.row < cRows && tr.row < drawY[col]) {
+          ctx.fillText(tr.ch, col * fs, tr.row * fs);
+        }
+      }
+    }
+  }
+
+  // ⑤ Grouped Head rendering (flashing vs normal for shadow batching)
+  
+  // Draw Normal Heads
+  ctx.shadowBlur = 6;
+  if (!CFG.rainbowLetters) {
+      ctx.shadowColor = cColors.bright;
+      ctx.fillStyle   = cColors.bright;
+  }
+  for (let col = 0; col < cols; col++) {
+     if (!colActive[col] || drawY[col] < 0 || drawY[col] >= cRows || flashMask[col]) continue;
+     if (CFG.rainbowLetters) {
+         ctx.shadowColor = colRainbowBright[col];
+         ctx.fillStyle   = colRainbowBright[col];
+     }
+     ctx.fillText(glyphs[col], col * fs, drawY[col] * fs);
+  }
+
+  // Draw Flashing Heads
+  ctx.shadowBlur = 16;
+  if (!CFG.rainbowLetters) {
+      ctx.shadowColor = cColors.glow;
+      ctx.fillStyle   = cColors.glow;
+  }
+  for (let col = 0; col < cols; col++) {
+     if (!colActive[col] || drawY[col] < 0 || drawY[col] >= cRows || !flashMask[col]) continue;
+     if (CFG.rainbowLetters) {
+         ctx.shadowColor = colRainbowGlow[col];
+         ctx.fillStyle   = colRainbowGlow[col];
+     }
+     ctx.fillText(glyphs[col], col * fs, drawY[col] * fs);
+  }
+  
+  ctx.shadowBlur = 0;
+
+  // ⑥ Advance physics and check for reset
+  for (let col = 0; col < cols; col++) {
+    if (!colActive[col]) continue;
+    
+    // Random glyph mutation
+    if (Math.random() < 0.03) {
+      glyphs[col] = randomChar();
+    }
+
+    // Advance drop
+    drops[col] += cSpeed * speeds[col];
+
+    // Reset column
+    if (drops[col] * fs > window.innerHeight + fs * 2) {
+      resetColumn(col);
+      colActive[col] = (Math.random() * 100 < CFG.density) ? 1 : 0;
+    }
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   #4  RIPPLE – canvas click spawns a wave of fresh streams
+───────────────────────────────────────────────────────────────── */
+canvas.addEventListener('click', e => {
+  if (paused) return;
+  const clickCol = Math.floor(e.clientX / CFG.fontSize);
+  const clickRow = Math.floor(e.clientY / CFG.fontSize);
+  const R = 6;
+
+  for (let c = Math.max(0, clickCol - R); c < Math.min(cols, clickCol + R + 1); c++) {
+    const dist   = Math.abs(c - clickCol);
+    drops[c]     = clickRow - dist * 0.5;   // wave-front stagger
+    glyphs[c]    = randomChar();
+    setColHue(c, Math.floor(Math.random() * 360));
+    trailBuf[c]  = [];
+    lastRowY[c]  = -999;
+    colActive[c] = 1;
+    speeds[c]    = 0.8 + Math.random() * 0.6;
+  }
+});
+
+/* ─────────────────────────────────────────────────────────────────
+   ANIMATION LOOP  (throttled RAF)
+───────────────────────────────────────────────────────────────── */
+let interval = 1000 / CFG.fps;
+let lastTime = 0;
+let rafHandle;
+let paused   = false;
+
+function loop(ts) {
+  rafHandle = requestAnimationFrame(loop);
+  if (ts - lastTime < interval) return;
+  lastTime = ts;
+  draw();
+}
+rafHandle = requestAnimationFrame(loop);
+
+/* ─────────────────────────────────────────────────────────────────
+   #9  PAUSE / PLAY
+───────────────────────────────────────────────────────────────── */
+function setPaused(state) {
+  paused = state;
+  const pb  = document.getElementById('pauseBtn');
+  const ppb = document.getElementById('pausePanelBtn');
+  if (paused) {
+    cancelAnimationFrame(rafHandle);
+    pb.textContent = '▶';
+    pb.classList.add('paused');
+    if (ppb) ppb.textContent = '▶ Play';
+  } else {
+    lastTime  = 0;
+    rafHandle = requestAnimationFrame(loop);
+    pb.textContent = '⏸';
+    pb.classList.remove('paused');
+    if (ppb) ppb.textContent = '⏸ Pause';
+  }
+}
+
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) cancelAnimationFrame(rafHandle);
+  else if (!paused) { lastTime = 0; rafHandle = requestAnimationFrame(loop); }
+});
+
+// #9 – Space key to toggle pause
+document.addEventListener('keydown', e => {
+  if (e.code === 'Space' && e.target === document.body) {
+    e.preventDefault();
+    setPaused(!paused);
+  }
+});
+
+/* ─────────────────────────────────────────────────────────────────
+   #13  LIVELY WALLPAPER integration
+   livelyPropertyListener is called by the Lively Wallpaper runtime
+   whenever the user changes a property in LivelyProperties.json.
+───────────────────────────────────────────────────────────────── */
+if (typeof lively !== 'undefined') {
+  lively.on('pause',  () => cancelAnimationFrame(rafHandle));
+  lively.on('resume', () => { if (!paused) { lastTime = 0; rafHandle = requestAnimationFrame(loop); } });
+}
+
+/** Global hook called by Lively Wallpaper when a property changes. */
+window.livelyPropertyListener = function(name, val) {
+  switch (name) {
+    case 'font_size':
+      CFG.fontSize = parseInt(val);
+      drops = null; doResize(); break;
+    case 'speed':
+      CFG.speedRaw = parseInt(val); refreshCache(); break;
+    case 'fade':
+      CFG.fadeRaw = parseInt(val); refreshCache(); break;
+    case 'fps':
+      CFG.fps = parseInt(val); interval = 1000 / CFG.fps; break;
+    case 'density':
+      CFG.density = parseInt(val);
+      if (colActive) for (let i = 0; i < cols; i++)
+        colActive[i] = (Math.random() * 100 < CFG.density) ? 1 : 0;
+      break;
+    case 'head_color': {
+      // Lively sends "R, G, B, A" string
+      if (typeof val === 'string') {
+        const p = val.split(',').map(v => parseInt(v.trim()));
+        CFG.headHex = '#' + p.slice(0,3).map(n => n.toString(16).padStart(2,'0')).join('');
+      } else { CFG.headHex = val; }
+      setAccent(CFG.headHex); refreshCache(); clearToBg(); break;
+    }
+    case 'bg_color': {
+      if (typeof val === 'string') {
+        const p = val.split(',').map(v => parseInt(v.trim()));
+        CFG.bgHex = '#' + p.slice(0,3).map(n => n.toString(16).padStart(2,'0')).join('');
+      } else { CFG.bgHex = val; }
+      refreshCache(); clearToBg(); break;
+    }
+    case 'katakana':
+      CFG.enabledSets.katakana = !!val;
+      CHARS = buildCharPool(); break;
+    case 'pause':
+      setPaused(!!val); break;
+    case 'clock_size':
+      CFG.clockSize = parseInt(val);
+      if (typeof applyClockStyle === 'function') applyClockStyle(); break;
+    case 'clock_opacity':
+      CFG.clockOpacity = parseInt(val);
+      if (typeof applyClockStyle === 'function') applyClockStyle(); break;
+    case 'show_clock':
+      CFG.showClock = !!val;
+      if (typeof applyClockStyle === 'function') applyClockStyle(); break;
+    case 'rainbow_letters':
+      CFG.rainbowLetters = !!val; clearToBg(); break;
+  }
+  syncUI();
+  saveSettings(CFG);
+};
+
+/* ═══════════════════════════════════════════════════════════════════
+   DRAGGABLE FLOATING BUTTONS  –  generic factory
+   Each button independently draggable, position persisted per-key.
+═══════════════════════════════════════════════════════════════════ */
+const panel    = document.getElementById('panel');
+const BTN_SIZE = 42;
+const MARGIN   = 10;
+const DRAG_THRESHOLD = 5;
+
+/**
+ * Make any element draggable anywhere on screen.
+ * @param {HTMLElement} btn        – the element to drag
+ * @param {string}      storageKey – localStorage key for position
+ * @param {()=>{x,y}}  defaultPos – called to get fallback {x,y}
+ * @param {Function}    onClick    – called on tap/click (no drag)
+ * @param {Function}   [onDragEnd] – called after drag released
+ * @returns {{ getPos }}           – accessor for current position
+ */
+function makeDraggable(btn, storageKey, defaultPos, onClick, onDragEnd) {
+  /* ── Position load/save ── */
+  function loadPos() {
+    try {
+      const p = JSON.parse(localStorage.getItem(storageKey) || 'null');
+      if (p && typeof p.x === 'number' && typeof p.y === 'number') return p;
+    } catch {}
+    return defaultPos();
+  }
+  function savePos(x, y) {
+    try { localStorage.setItem(storageKey, JSON.stringify({ x, y })); } catch {}
+  }
+
+  /* ── Apply position (clamped to viewport) ── */
+  function applyPos(x, y) {
+    x = Math.max(MARGIN, Math.min(window.innerWidth  - BTN_SIZE - MARGIN, x));
+    y = Math.max(MARGIN, Math.min(window.innerHeight - BTN_SIZE - MARGIN, y));
+    btn.style.left   = x + 'px';
+    btn.style.top    = y + 'px';
+    btn.style.right  = 'auto';
+    btn.style.bottom = 'auto';
+    pos = { x, y };
+    return pos;
+  }
+
+  let pos = loadPos();
+  applyPos(pos.x, pos.y);
+
+  /* ── Pointer events ── */
+  let dragState = null;
+
+  btn.addEventListener('pointerdown', e => {
+    if (e.button !== 0 && e.button !== undefined) return;
+    dragState = { startX: e.clientX, startY: e.clientY, origX: pos.x, origY: pos.y, moved: false };
+    btn.setPointerCapture(e.pointerId);
+    e.preventDefault();
+  });
+
+  btn.addEventListener('pointermove', e => {
+    if (!dragState) return;
+    const dx = e.clientX - dragState.startX;
+    const dy = e.clientY - dragState.startY;
+    if (!dragState.moved && Math.hypot(dx, dy) < DRAG_THRESHOLD) return;
+    if (!dragState.moved) { dragState.moved = true; btn.classList.add('dragging'); }
+    applyPos(dragState.origX + dx, dragState.origY + dy);
+  });
+
+  btn.addEventListener('pointerup', e => {
+    if (!dragState) return;
+    const wasDrag = dragState.moved;
+    dragState = null;
+    btn.classList.remove('dragging');
+    if (!wasDrag) {
+      onClick();
+    } else {
+      savePos(pos.x, pos.y);
+      if (onDragEnd) onDragEnd(pos);
+    }
+  });
+
+  btn.addEventListener('pointercancel', () => {
+    if (!dragState) return;
+    dragState = null;
+    btn.classList.remove('dragging');
+  });
+
+  /* Re-clamp on viewport resize */
+  window.addEventListener('resize', () => applyPos(pos.x, pos.y));
+
+  return { getPos: () => pos };
+}
+
+/* ── Settings toggle ── */
+const toggleBtn = document.getElementById('settingsToggle');
+
+function positionPanel(btnX, btnY) {
+  const PW  = 295;
+  const PH  = Math.min(panel.scrollHeight || 540, window.innerHeight * 0.88);
+  const vw  = window.innerWidth, vh = window.innerHeight;
+  const gap = 10;
+  let top  = (btnY + BTN_SIZE / 2 > vh / 2) ? btnY - PH - gap : btnY + BTN_SIZE + gap;
+  let left = (btnX + BTN_SIZE / 2 > vw / 2) ? btnX + BTN_SIZE - PW : btnX;
+  left = Math.max(MARGIN, Math.min(vw - PW - MARGIN, left));
+  top  = Math.max(MARGIN, Math.min(vh - PH - MARGIN, top));
+  panel.style.left   = left + 'px';
+  panel.style.top    = top  + 'px';
+  panel.style.right  = 'auto';
+  panel.style.bottom = 'auto';
+}
+
+const settingsDrag = makeDraggable(
+  toggleBtn,
+  'matrixBtnPos',
+  () => ({ x: window.innerWidth - BTN_SIZE - 22, y: window.innerHeight - BTN_SIZE - 22 }),
+  /* onClick */ () => {
+    const open = panel.classList.toggle('hidden') === false;
+    toggleBtn.classList.toggle('open', open);
+    if (open) positionPanel(settingsDrag.getPos().x, settingsDrag.getPos().y);
+  },
+  /* onDragEnd */ () => {
+    if (!panel.classList.contains('hidden'))
+      positionPanel(settingsDrag.getPos().x, settingsDrag.getPos().y);
+  }
+);
+
+/* Re-anchor panel on window resize */
+window.addEventListener('resize', () => {
+  if (!panel.classList.contains('hidden'))
+    positionPanel(settingsDrag.getPos().x, settingsDrag.getPos().y);
+});
+
+/* ── Pause button ── */
+const pauseDrag = makeDraggable(
+  document.getElementById('pauseBtn'),
+  'matrixPauseBtnPos',
+  /* default: just left of the settings toggle */ () => ({
+    x: window.innerWidth  - BTN_SIZE - 22 - BTN_SIZE - 10,
+    y: window.innerHeight - BTN_SIZE - 22,
+  }),
+  /* onClick */ () => setPaused(!paused)
+);
+
+/* ── CSS accent variable (reflects head colour) ── */
+function setAccent(hex) { document.documentElement.style.setProperty('--accent', hex); }
+setAccent(CFG.headHex);
+
+/* ── UI element references ── */
+const elSize    = document.getElementById('rSize');
+const elSpeed   = document.getElementById('rSpeed');
+const elFade    = document.getElementById('rFade');
+const elFps     = document.getElementById('rFps');
+const elDensity = document.getElementById('rDensity');
+const elHead    = document.getElementById('cHead');
+const elBg      = document.getElementById('cBg');
+const vSize     = document.getElementById('vSize');
+const vSpeed    = document.getElementById('vSpeed');
+const vFade     = document.getElementById('vFade');
+const vFps      = document.getElementById('vFps');
+const vDensity  = document.getElementById('vDensity');
+
+const TRAIL_LABELS = ['Very Long','Long','Med-Long','Med','Med-Short','Short','Very Short','Instant'];
+function trailLabel(v) { return TRAIL_LABELS[Math.round((v - 1) / 19 * (TRAIL_LABELS.length - 1))]; }
+
+/* ── Sync all UI elements from CFG ── */
+function syncUI() {
+  elSize.value    = CFG.fontSize;
+  elSpeed.value   = CFG.speedRaw;
+  elFade.value    = CFG.fadeRaw;
+  elFps.value     = CFG.fps;
+  elDensity.value = CFG.density;
+  elHead.value    = CFG.headHex;
+  elBg.value      = CFG.bgHex;
+
+  vSize.textContent    = CFG.fontSize + 'px';
+  vSpeed.textContent   = (CFG.speedRaw / 10).toFixed(1) + 'x';
+  vFade.textContent    = trailLabel(CFG.fadeRaw);
+  vFps.textContent     = CFG.fps;
+  vDensity.textContent = CFG.density + '%';
+
+  document.getElementById('csVowels').checked     = !!CFG.enabledSets.vowels;
+  document.getElementById('csConsonants').checked = !!CFG.enabledSets.consonants;
+  document.getElementById('csMaatras').checked    = !!CFG.enabledSets.maatras;
+  document.getElementById('csVedic').checked      = !!CFG.enabledSets.vedic;
+  document.getElementById('csDigits').checked     = !!CFG.enabledSets.digits;
+  document.getElementById('csSiddham').checked    = !!CFG.enabledSets.siddham;
+  document.getElementById('csExtended').checked   = !!CFG.enabledSets.extended;
+  document.getElementById('csKatakana').checked   = !!CFG.enabledSets.katakana;
+
+  // Clock controls
+  const cbRC= document.getElementById('cbRainbow');
+  if (cbRC) cbRC.checked = !!CFG.rainbowLetters;
+
+  const rCS = document.getElementById('rClockSize');
+  const rCO = document.getElementById('rClockOpacity');
+  const cbSC= document.getElementById('cbShowClock');
+  if (rCS)  rCS.value  = CFG.clockSize;
+  if (rCO)  rCO.value  = CFG.clockOpacity;
+  if (cbSC) cbSC.checked = CFG.showClock;
+  document.getElementById('vClockSize').textContent    = (CFG.clockSize/100).toFixed(1)+'×';
+  document.getElementById('vClockOpacity').textContent = CFG.clockOpacity+'%';
+  applyClockStyle();
+
+  setAccent(CFG.headHex);
+  syncActivePreset();
+}
+syncUI();
+
+/* ── Slider / picker event handlers ── */
+elSize.addEventListener('input', () => {
+  CFG.fontSize = parseInt(elSize.value);
+  vSize.textContent = CFG.fontSize + 'px';
+  drops = null; doResize(); save();
+});
+elSpeed.addEventListener('input', () => {
+  CFG.speedRaw = parseInt(elSpeed.value);
+  vSpeed.textContent = (CFG.speedRaw / 10).toFixed(1) + 'x';
+  refreshCache(); save();
+});
+elFade.addEventListener('input', () => {
+  CFG.fadeRaw = parseInt(elFade.value);
+  vFade.textContent = trailLabel(CFG.fadeRaw);
+  refreshCache(); save();
+});
+elFps.addEventListener('input', () => {
+  CFG.fps  = parseInt(elFps.value);
+  interval = 1000 / CFG.fps;
+  vFps.textContent = CFG.fps; save();
+});
+elDensity.addEventListener('input', () => {
+  CFG.density = parseInt(elDensity.value);
+  vDensity.textContent = CFG.density + '%';
+  if (colActive) for (let i = 0; i < cols; i++)
+    colActive[i] = (Math.random() * 100 < CFG.density) ? 1 : 0;
+  save();
+});
+elHead.addEventListener('input', () => {
+  CFG.headHex = elHead.value;
+  setAccent(CFG.headHex);
+  refreshCache(); clearToBg(); syncActivePreset(); save();
+});
+elBg.addEventListener('input', () => {
+  CFG.bgHex = elBg.value;
+  refreshCache(); clearToBg(); save();
+});
+
+function save() { saveSettings(CFG); }
+
+/* ── Preset chips ── */
+function syncActivePreset() {
+  document.querySelectorAll('.preset-chip').forEach(c => {
+    const p = PRESETS[c.dataset.preset];
+    c.classList.toggle('active', p && p.head.toLowerCase() === CFG.headHex.toLowerCase());
+  });
+}
+document.querySelectorAll('.preset-chip').forEach(chip => {
+  chip.addEventListener('click', () => {
+    const p = PRESETS[chip.dataset.preset];
+    if (!p) return;
+    CFG.headHex = p.head;
+    CFG.bgHex   = p.bg;
+    refreshCache(); clearToBg(); syncUI(); save();
+  });
+});
+
+/* #7 ── Character-set checkboxes ── */
+const CS_MAP = {
+  csVowels:'vowels', csConsonants:'consonants', csMaatras:'maatras',
+  csVedic:'vedic',   csDigits:'digits',         csSiddham:'siddham',
+  csExtended:'extended',                        csKatakana:'katakana',
+};
+Object.entries(CS_MAP).forEach(([id, key]) => {
+  document.getElementById(id).addEventListener('change', e => {
+    if (!e.target.checked) {
+      const anyLeft = Object.keys(CS_MAP).some(oid => oid !== id && document.getElementById(oid).checked);
+      if (!anyLeft) {
+        e.target.checked = true;
+        showToast('⚠ At least one set must stay enabled!');
+        return;
+      }
+    }
+    CFG.enabledSets[key] = e.target.checked;
+    CHARS = buildCharPool();
+    save();
+  });
+});
+
+/* #9 ── Pause panel button ── */
+document.getElementById('pausePanelBtn').addEventListener('click', () => setPaused(!paused));
+
+/* ── Reset ── */
+document.getElementById('resetBtn').addEventListener('click', () => {
+  CFG      = { ...DEFAULTS, enabledSets: { ...DEFAULTS.enabledSets } };
+  CHARS    = buildCharPool();
+  drops    = null; doResize();
+  interval = 1000 / CFG.fps;
+  refreshCache(); syncUI(); save();
+});
+
+/* #8 ── Export ── */
+document.getElementById('exportBtn').addEventListener('click', () => {
+  const json = JSON.stringify(CFG, null, 2);
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(json)
+      .then(()  => showToast('Config copied to clipboard ✓'))
+      .catch(() => showInTextarea(json));
+  } else {
+    showInTextarea(json);
+  }
+});
+function showInTextarea(text) {
+  importArea.value = text;
+  importArea.classList.add('visible');
+  document.getElementById('importApplyRow').style.display = 'flex';
+  showToast('Config shown in text box below');
+}
+
+/* #8 ── Import ── */
+const importArea     = document.getElementById('importArea');
+const importApplyRow = document.getElementById('importApplyRow');
+
+document.getElementById('importToggleBtn').addEventListener('click', () => {
+  const visible = importArea.classList.toggle('visible');
+  importApplyRow.style.display = visible ? 'flex' : 'none';
+  if (visible) { importArea.value = ''; importArea.focus(); }
+});
+document.getElementById('importApplyBtn').addEventListener('click', () => {
+  try {
+    const parsed = JSON.parse(importArea.value);
+    if (parsed.enabledSets) parsed.enabledSets = { ...DEFAULTS.enabledSets, ...parsed.enabledSets };
+    CFG = { ...DEFAULTS, ...parsed };
+    CHARS = buildCharPool();
+    drops = null; doResize();
+    interval = 1000 / CFG.fps;
+    refreshCache(); syncUI(); save();
+    importArea.classList.remove('visible');
+    importApplyRow.style.display = 'none';
+    importArea.value = '';
+    showToast('Config imported ✓');
+  } catch { showToast('⚠ Invalid JSON — check and retry'); }
+});
+document.getElementById('importCancelBtn').addEventListener('click', () => {
+  importArea.classList.remove('visible');
+  importApplyRow.style.display = 'none';
+  importArea.value = '';
+});
+
+/* ── Toast notification ── */
+let toastTimer;
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   HTC-STYLE FLIP CLOCK
+═══════════════════════════════════════════════════════════════════ */
+
+/* ── Build DOM structure for the 6 digit tiles ── */
+(function buildClockDOM() {
+  const display = document.getElementById('fcDisplay');
+
+  function makeDigit(id) {
+    const d = document.createElement('div');
+    d.className = 'fc-digit';
+    d.id = 'fc_' + id;
+    d.innerHTML =
+      '<div class="fc-upper"><span>0</span></div>' +
+      '<div class="fc-lower"><span>0</span></div>' +
+      '<div class="fc-fu"><span>0</span></div>'   +
+      '<div class="fc-fl"><span>0</span></div>';
+    return d;
+  }
+  function makePair(prefix) {
+    const p = document.createElement('div');
+    p.className = 'fc-pair';
+    p.appendChild(makeDigit(prefix + '0'));
+    p.appendChild(makeDigit(prefix + '1'));
+    return p;
+  }
+  function makeSep() {
+    const s = document.createElement('div');
+    s.className = 'fc-sep';
+    s.textContent = ':';
+    return s;
+  }
+
+  display.appendChild(makePair('h'));
+  display.appendChild(makeSep());
+  display.appendChild(makePair('m'));
+  display.appendChild(makeSep());
+  display.appendChild(makePair('s'));
+})();
+
+/* ── Per-digit flip animator ── */
+const _fcPrev = {};
+
+function fcSetDigit(id, newVal) {
+  const el = document.getElementById('fc_' + id);
+  if (!el) return;
+
+  const str     = String(newVal);
+  const prevStr = _fcPrev[id];
+  _fcPrev[id]   = str;
+
+  const upper = el.querySelector('.fc-upper span');
+  const lower = el.querySelector('.fc-lower span');
+  const fu    = el.querySelector('.fc-fu');
+  const fl    = el.querySelector('.fc-fl');
+
+  if (prevStr === undefined) {
+    // First render — no animation
+    upper.textContent = str;
+    lower.textContent = str;
+    fu.querySelector('span').textContent = str;
+    fl.querySelector('span').textContent = str;
+    return;
+  }
+  if (prevStr === str) return;   // no change
+
+  // Prepare flip overlays with old/new values
+  fu.querySelector('span').textContent = prevStr;
+  fl.querySelector('span').textContent = str;
+
+  // Reset animation cleanly
+  fu.classList.remove('fc-go');
+  fl.classList.remove('fc-go');
+  void el.offsetWidth;            // force reflow
+
+  // Update static cards to the NEW value (revealed after flip)
+  upper.textContent = str;
+  lower.textContent = str;
+
+  // Start the flip
+  fu.classList.add('fc-go');
+  fl.classList.add('fc-go');
+}
+
+/* ── Tick — runs every second ── */
+function fcTick() {
+  const now = new Date();
+  const h = now.getHours(), m = now.getMinutes(), s = now.getSeconds();
+  fcSetDigit('h0', Math.floor(h / 10));
+  fcSetDigit('h1', h % 10);
+  fcSetDigit('m0', Math.floor(m / 10));
+  fcSetDigit('m1', m % 10);
+  fcSetDigit('s0', Math.floor(s / 10));
+  fcSetDigit('s1', s % 10);
+}
+fcTick();                          // immediate first render
+setInterval(fcTick, 1000);
+
+/* ── Apply size / opacity / visibility from CFG ── */
+function applyClockStyle() {
+  const fc = document.getElementById('flipClock');
+  if (!fc) return;
+  const scale = CFG.clockSize / 100;
+  fc.style.transform = `scale(${scale})`;
+  fc.style.opacity   = CFG.showClock ? CFG.clockOpacity / 100 : 0;
+  fc.style.pointerEvents = CFG.showClock ? 'auto' : 'none';
+}
+applyClockStyle();
+
+/* ── Draggable clock ── */
+makeDraggable(
+  document.getElementById('flipClock'),
+  'matrixClockPos',
+  () => ({ x: 40, y: 40 }),   // default: near top-left
+  () => {}                    // no click action for the clock
+);
+
+/* ── Settings panel wiring ── */
+document.getElementById('rClockSize').addEventListener('input', function() {
+  CFG.clockSize = parseInt(this.value);
+  document.getElementById('vClockSize').textContent = (CFG.clockSize/100).toFixed(1)+'×';
+  applyClockStyle(); save();
+});
+document.getElementById('rClockOpacity').addEventListener('input', function() {
+  CFG.clockOpacity = parseInt(this.value);
+  document.getElementById('vClockOpacity').textContent = CFG.clockOpacity+'%';
+  applyClockStyle(); save();
+});
+document.getElementById('cbShowClock').addEventListener('change', function() {
+  CFG.showClock = this.checked;
+  applyClockStyle(); save();
+});
+document.getElementById('cbRainbow').addEventListener('change', function() {
+  CFG.rainbowLetters = this.checked;
+  clearToBg(); save();
+});
+</script>
+</body>
+</html>

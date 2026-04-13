@@ -1,0 +1,12 @@
+{
+  "contentrating": "Everyone",
+  "description": "A Matrix-style falling-glyph live wallpaper using the full Devanagari / Sanskrit character set — pure HTML5 Canvas, zero dependencies. Customisable colours, speed, trail, density, and character sets.",
+  "file": "index.html",
+  "preview": "preview.gif",
+  "tags": ["Artistic", "Customizable", "Anime", "Minimalist"],
+  "title": "Sanskrit Matrix",
+  "type": "web",
+  "version": 2,
+  "visibility": "private",
+  "workshopid": ""
+}
