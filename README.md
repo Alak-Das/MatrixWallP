@@ -43,7 +43,7 @@ All enabled sets are drawn in **random order** — every glyph is picked uniform
 | 15 | **Debounced resize** — prevent thrashing during window drag |
 | 16 | **Cached draw constants** — precomputes performance-heavy variables |
 | 17 | **HTC-Style Flip Clock** — Customizable 3D flip clock with adjustable size, opacity, and position |
-| 18 | **Animation Styles** — Choose between Falling (Matrix classic), Blinking (twinkling), or Mixed |
+| 18 | **Animation Styles** — Choice of Falling, Blinking, or Mixed modes via reliable radio button UI |
 | 19 | **Advanced Performance** — Zero-Allocation rendering pipeline with state batching and precomputed HSL palettes |
 
 ---
